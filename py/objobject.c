@@ -95,6 +95,15 @@ static mp_obj_t object___delattr__(mp_obj_t self_in, mp_obj_t attr) {
 static MP_DEFINE_CONST_FUN_OBJ_2(object___delattr___obj, object___delattr__);
 #endif
 
+#if MICROPY_PY_METACLASSES_LITE
+static mp_obj_t object___init_subclass__(mp_obj_t cls_in) {
+    (void)self;
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(object___init_subclass___fun_obj, object___init_subclass__);
+static MP_DEFINE_CONST_CLASSMETHOD_OBJ(object___init_subclass___obj, MP_ROM_PTR(&object___init_subclass___fun_obj));
+#endif
+
 static const mp_rom_map_elem_t object_locals_dict_table[] = {
     #if MICROPY_CPYTHON_COMPAT
     { MP_ROM_QSTR(MP_QSTR___init__), MP_ROM_PTR(&object___init___obj) },
@@ -105,6 +114,9 @@ static const mp_rom_map_elem_t object_locals_dict_table[] = {
     #if MICROPY_PY_DELATTR_SETATTR
     { MP_ROM_QSTR(MP_QSTR___setattr__), MP_ROM_PTR(&object___setattr___obj) },
     { MP_ROM_QSTR(MP_QSTR___delattr__), MP_ROM_PTR(&object___delattr___obj) },
+    #endif
+    #if MICROPY_PY_METACLASSES_LITE
+    { MP_ROM_QSTR(MP_QSTR___init_subclass__), MP_ROM_PTR(&object___init_subclass___obj) },
     #endif
 };
 
