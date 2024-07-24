@@ -1399,6 +1399,10 @@ void mp_load_super_method(qstr attr, mp_obj_t *dest) {
     mp_obj_super_t super = {{&mp_type_super}, dest[1], dest[2]};
     mp_load_method(MP_OBJ_FROM_PTR(&super), attr, dest);
 }
+void mp_load_super_method_maybe(qstr attr, mp_obj_t *dest) {
+    mp_obj_super_t super = {{&mp_type_super}, dest[1], dest[2]};
+    mp_load_method_maybe(MP_OBJ_FROM_PTR(&super), attr, dest);
+}
 
 /******************************************************************************/
 // subclassing and built-ins specific to types

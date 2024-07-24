@@ -97,9 +97,9 @@ static MP_DEFINE_CONST_FUN_OBJ_2(object___delattr___obj, object___delattr__);
 
 #if MICROPY_PY_METACLASSES
 static mp_obj_t object___init_subclass__(mp_obj_t cls_in) {
-    // call over to the next base, essentially `super(object, cls).__init_subclass__()`
+    // call over to sibling base, essentially `super(object, cls).__init_subclass__()`
     // (but if this is the last base, we're done)
-    mp_obj_t init_subclass_method[2] = {&mp_type_object, cls_in};
+    mp_obj_t init_subclass_method[2] = {MP_OBJ_FROM_PTR(&mp_type_object), cls_in};
     mp_load_super_method_maybe(MP_QSTR___init_subclass__, init_subclass_method);
     if (init_subclass_method[1] != MP_OBJ_NULL) {
         mp_call_method_n_kw(0, 0, init_subclass_method);
