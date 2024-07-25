@@ -1,6 +1,7 @@
 
 
 class Indent:
+    """Context manager to make printing the recursive calls less of a pain."""
     class IndentLabel:
         def __init__(self, parent, label, **kw):
             self.parent = parent
@@ -14,7 +15,7 @@ class Indent:
             if exc_value:
                 print(self.parent, "} ->", repr(exc_value))
             else:
-                print(self.parent, "}", **self.kw )
+                print(self.parent, "}", **self.kw) # kw mostly for passing end=
 
     def __init__(self, init_count=0, multiplier=2):
         self.count = init_count
@@ -27,13 +28,14 @@ class Indent:
         self.count += 1
     def __exit__(self, exc_type, exc_value, traceback):
         self.count -= 1
-
 indent = Indent(multiplier=2)
+
 
 def repr_class(cls):
     return f"<class '{cls.__name__}'>"
 def repr_super(s):
     return repr(s)
+
 
 try:
     with indent("AAA", end=" = "):
@@ -57,10 +59,10 @@ try:
             
             def __repr__(self) -> str:
                 return "<AAA object>"
-    
     print(repr_class(AAA))
 except Exception as e:
     pass
+
 
 try:
     with indent("AAB", end=" = "):
@@ -84,10 +86,10 @@ try:
             
             def __repr__(self) -> str:
                 return "<AAB object>"
-    
     print(repr_class(AAB))
 except Exception as e:
     pass
+
 
 try:
     with indent("ABA", end=" = "):
@@ -111,10 +113,10 @@ try:
             
             def __repr__(self) -> str:
                 return "<ABA object>"
-    
     print(repr_class(ABA))
 except Exception as e:
     pass
+
 
 try:
     with indent("ABB", end=" = "):
@@ -138,10 +140,10 @@ try:
             
             def __repr__(self) -> str:
                 return "<ABB object>"
-    
     print(repr_class(ABB))
 except Exception as e:
     pass
+
 
 try:
     with indent("AAx", end=" = "):
@@ -165,10 +167,10 @@ try:
             
             def __repr__(self) -> str:
                 return "<AAx object>"
-    
     print(repr_class(AAx))
 except Exception as e:
     pass
+
 
 try:
     with indent("ABx", end=" = "):
@@ -192,10 +194,10 @@ try:
             
             def __repr__(self) -> str:
                 return "<ABx object>"
-    
     print(repr_class(ABx))
 except Exception as e:
     pass
+
 
 try:
     with indent("Axx", end=" = "):
@@ -219,7 +221,6 @@ try:
             
             def __repr__(self) -> str:
                 return "<Axx object>"
-    
     print(repr_class(Axx))
 except Exception as e:
     pass
