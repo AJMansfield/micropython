@@ -1,8 +1,8 @@
 """
 categories: Core,Classes
-description: The order and selection for which class members ``__set_name__`` is called on is inconsistent when the parent class is mutated within ``__set_name__``.
+description: The order and selection for which class members __set_name__ is called on is inconsistent when the parent class is mutated within __set_name__.
 cause: MicroPython dictionary iteration order does not match CPython order.
-workaround: Don't add or remove class members that define ``__set_name__`` in ``__set_name__`` implementations.
+workaround: Don't add or remove class members that define __set_name__ in __set_name__ implementations.
 """
 
 
@@ -19,7 +19,7 @@ DEL = Del()
 """Deletion sentinel for descriptor modification execution."""
 
 class Descriptor:
-    """Convenience descriptor for setting up class modifications to happen at ``__set_name__`` time."""
+    """Convenience descriptor for setting up class modifications to happen at __set_name__ time."""
     def __init__(self, *args, **kw):
         self.args = args
         self.ops = [] # type: list[tuple[str, ...]]
