@@ -7,7 +7,8 @@ workaround: Avoid ``__set_name__`` implementations that add or remove members fr
 
 # This bug is EXTREMELY difficult to demonstrate with only a minimal test case
 # due to the unstable iteration order of a class's namespace. This bug more-or-less
-# _requires_ a stochastic test in order to see it with any level of clarity.
+# _requires_ a stochastic test in order to guarantee it occurs or demonstrate its
+# potential impact with any level of clarity.
 
 import random
 import re
@@ -17,15 +18,13 @@ letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 junk_re = re.compile(r"[A-Z]{5}$")
 
 
-def junk_fill(obj, n=10):
-    """Add an arbitrary number of randomly-generated attributes to an object."""
+def junk_fill(obj, n=10):  # Add randomly-generated attributes to an object.
     for i in range(n):
         name = "".join(random.choice(letters) for j in range(5))
         setattr(obj, name, object())
 
 
-def junk_clear(obj):
-    """Remove attributes added by junk_fill."""
+def junk_clear(obj):  # Remove attributes added by junk_fill.
     to_del = [name for name in dir(obj) if junk_re.match(name)]
     for name in to_del:
         delattr(obj, name)
