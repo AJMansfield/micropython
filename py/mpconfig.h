@@ -1810,6 +1810,11 @@ typedef double mp_float_t;
 #define MICROPY_PY_MACHINE_MEMX (MICROPY_PY_MACHINE)
 #endif
 
+// Whether to provide slicing capabilities on the "machine.mem8/16/32" objects
+#ifndef MICROPY_PY_MACHINE_MEMX_SLICE
+#define MICROPY_PY_MACHINE_MEMX_SLICE (MICROPY_PY_MACHINE_MEMX && MICROPY_PY_BUILTINS_SLICE && MICROPY_PY_BUILTINS_MEMORYVIEW)
+#endif
+
 // Whether to provide the "machine.Signal" class
 #ifndef MICROPY_PY_MACHINE_SIGNAL
 #define MICROPY_PY_MACHINE_SIGNAL (MICROPY_PY_MACHINE)
