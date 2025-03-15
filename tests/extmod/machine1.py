@@ -22,15 +22,21 @@ class Test(unittest.TestCase):
         with self.assertRaises(ValueError):
             machine.mem16[1] = 1
 
+        with self.assertRaises(ValueError):
+            machine.mem16[:3]
+
+        with self.assertRaises(ValueError):
+            machine.mem16[:3] = [0x0000, 0x0000]
+
     def test_operations(self):
         with self.assertRaises(TypeError):
             del machine.mem8[0]
 
-        with self.assertRaises(TypeError):
-            machine.mem8[0:1]
+        with self.assertRaises(ValueError):
+            machine.mem8[0:1:2]
 
-        with self.assertRaises(TypeError):
-            machine.mem8[0:1] = 10
+        with self.assertRaises(ValueError):
+            machine.mem8[1:0]
 
         with self.assertRaises(TypeError):
             machine.mem8["hello"]
