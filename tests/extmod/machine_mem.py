@@ -50,7 +50,9 @@ except ImportError:
             try:
                 self.offsets[off][idx] = value
             except TypeError:
-                self.offsets[off][idx] = array.array(self.fmt, value)
+                for i, v in enumerate(value):
+                    if v is not None:
+                        self.offsets[off][idx][i] = v
 
         def __delitem__(self, key):
             idx, off = self._calc_idx_off(key)
@@ -109,5 +111,11 @@ mem32[base + 48 : base + 64] = [0xCCCCCCCC] * 4
 print(list(mem8[base + 48 : base + 64]))
 print(list(mem16[base + 48 : base + 64]))
 print(list(mem32[base + 48 : base + 64]))
+
+mem32[base + 64 : base + 80] = [0xDDDDDDDD, None, 0xDDDDDDDD, None]
+
+print(list(mem8[base + 64 : base + 80]))
+print(list(mem16[base + 64 : base + 80]))
+print(list(mem32[base + 64 : base + 80]))
 
 print(buf)
