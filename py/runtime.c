@@ -1293,13 +1293,29 @@ void mp_store_attr(mp_obj_t base, qstr attr, mp_obj_t value) {
 }
 
 mp_obj_t mp_getiter(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf) {
+    mp_obj_t iter;
+    if (mp_getiter_maybe(o_in, iter_buf, &iter)) {
+        return iter;
+    } else {
+        // object not iterable
+        #if MICROPY_ERROR_REPORTING <= MICROPY_ERROR_REPORTING_TERSE
+        mp_raise_TypeError(MP_ERROR_TEXT("object not iterable"));
+        #else
+        mp_raise_msg_varg(&mp_type_TypeError,
+            MP_ERROR_TEXT("'%s' object isn't iterable"), mp_obj_get_type_str(o_in));
+        #endif
+    }
+}
+
+bool mp_getiter_maybe(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf, mp_obj_t *iter) {
     assert(o_in);
     const mp_obj_type_t *type = mp_obj_get_type(o_in);
 
     // Most types that use iternext just use the identity getiter. We handle this case explicitly
     // so we don't unnecessarily allocate any RAM for the iter_buf, which won't be used.
     if ((type->flags & MP_TYPE_FLAG_ITER_IS_ITERNEXT) == MP_TYPE_FLAG_ITER_IS_ITERNEXT || (type->flags & MP_TYPE_FLAG_ITER_IS_STREAM) == MP_TYPE_FLAG_ITER_IS_STREAM) {
-        return o_in;
+        *iter = o_in;
+        return true;
     }
 
     if (MP_OBJ_TYPE_HAS_SLOT(type, iter)) {
@@ -1315,9 +1331,9 @@ mp_obj_t mp_getiter(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf) {
         } else {
             getiter = (mp_getiter_fun_t)MP_OBJ_TYPE_GET_SLOT(type, iter);
         }
-        mp_obj_t iter = getiter(o_in, iter_buf);
-        if (iter != MP_OBJ_NULL) {
-            return iter;
+        *iter = getiter(o_in, iter_buf);
+        if (*iter != MP_OBJ_NULL) {
+            return true;
         }
     }
 
@@ -1330,17 +1346,11 @@ mp_obj_t mp_getiter(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf) {
             // if caller did not provide a buffer then allocate one on the heap
             iter_buf = m_new_obj(mp_obj_iter_buf_t);
         }
-        return mp_obj_new_getitem_iter(dest, iter_buf);
+        *iter = mp_obj_new_getitem_iter(dest, iter_buf);
+        return true;
     }
 
-    // object not iterable
-    #if MICROPY_ERROR_REPORTING <= MICROPY_ERROR_REPORTING_TERSE
-    mp_raise_TypeError(MP_ERROR_TEXT("object not iterable"));
-    #else
-    mp_raise_msg_varg(&mp_type_TypeError,
-        MP_ERROR_TEXT("'%s' object isn't iterable"), mp_obj_get_type_str(o_in));
-    #endif
-
+    return false;
 }
 
 static mp_fun_1_t type_get_iternext(const mp_obj_type_t *type) {
