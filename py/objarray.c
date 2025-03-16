@@ -34,7 +34,7 @@
 #include "py/objstr.h"
 #include "py/objarray.h"
 
-#if MICROPY_PY_ARRAY || MICROPY_PY_BUILTINS_BYTEARRAY || MICROPY_PY_BUILTINS_MEMORYVIEW
+#if MICROPY_PY_ARRAY || MICROPY_PY_BUILTINS_BYTEARRAY || MICROPY_PY_BUILTINS_MEMORYVIEW || MICROPY_PY_MACHINE_MEMX
 
 // About memoryview object: We want to reuse as much code as possible from
 // array, and keep the memoryview object 4 words in size so it fits in 1 GC
@@ -60,6 +60,36 @@
 // memview_offset should not be accessed if memoryview is not enabled,
 // so not defined to catch errors
 #endif
+
+
+#if MICROPY_PY_MACHINE_MEMX
+#include "extmod/modmachine.h"
+
+// If you wish to override the functions for mapping the machine_mem read/write
+// address, then add a #define for MICROPY_MACHINE_MEM_GET_READ_ADDR and/or
+// MICROPY_MACHINE_MEM_GET_WRITE_ADDR in your mpconfigport.h. Since the
+// prototypes are identical, it is allowable for both of the macros to evaluate
+// the to same function.
+//
+// It is expected that the modmachine.c file for a given port will provide the
+// implementations, if the default implementation isn't used.
+
+#if !defined(MICROPY_MACHINE_MEM_GET_READ_ADDR) || !defined(MICROPY_MACHINE_MEM_GET_WRITE_ADDR)
+static uintptr_t machine_mem_get_addr(mp_obj_t addr_o, uint align) {
+    uintptr_t addr = mp_obj_get_int_truncated(addr_o);
+    if ((addr & (align - 1)) != 0) {
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("address %08x is not aligned to %d bytes"), addr, align);
+    }
+    return addr;
+}
+#if !defined(MICROPY_MACHINE_MEM_GET_READ_ADDR)
+#define MICROPY_MACHINE_MEM_GET_READ_ADDR machine_mem_get_addr
+#endif
+#if !defined(MICROPY_MACHINE_MEM_GET_WRITE_ADDR)
+#define MICROPY_MACHINE_MEM_GET_WRITE_ADDR machine_mem_get_addr
+#endif
+#endif
+#endif // MICROPY_PY_MACHINE_MEMX
 
 static mp_obj_t array_iterator_new(mp_obj_t array_in, mp_obj_iter_buf_t *iter_buf);
 static mp_obj_t array_append(mp_obj_t self_in, mp_obj_t arg);
@@ -90,6 +120,21 @@ static void array_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t 
         }
     }
     mp_print_str(print, ")");
+}
+#endif
+
+#if MICROPY_PY_MACHINE_MEMX
+static void memx_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+    (void)kind;
+    mp_obj_array_t *self = MP_OBJ_TO_PTR(self_in);
+    size_t item_sz = mp_binary_get_size('@', self->typecode & TYPECODE_MASK, NULL);
+    mp_printf(print, "<%u-bit memory>", 8 * item_sz);
+
+    uintptr_t start = (uintptr_t)self->items;
+    uintptr_t stop = start + (self->len * item_sz);
+    if (start != 0 || stop != UINTPTR_MAX) {
+        mp_printf(print, "[%p:%p]", start, stop);
+    }
 }
 #endif
 
@@ -581,6 +626,144 @@ static mp_obj_t array_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value
     }
 }
 
+static mp_obj_t memx_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value) {
+    if (value == MP_OBJ_NULL) {
+        // delete
+        return MP_OBJ_NULL; // op not supported
+    }
+
+    mp_obj_array_t *self = MP_OBJ_TO_PTR(self_in);
+    size_t item_sz = mp_binary_get_size('@', self->typecode & TYPECODE_MASK, NULL);
+
+    #if MICROPY_PY_BUILTINS_SLICE
+    if (mp_obj_is_type(index_in, &mp_type_slice)) {
+        mp_obj_slice_t *index = MP_OBJ_TO_PTR(index_in);
+
+        const uintptr_t orig_start = (uintptr_t)self->items;
+        const uintptr_t orig_stop = orig_start + (self->len * item_sz);
+        uintptr_t start, stop;
+
+        if (index->start == mp_const_none) {
+            start = orig_start;
+        } else {
+            mp_int_t start_delta = mp_obj_get_int(index->start);
+            if (start_delta < 0) {
+                start = orig_stop + start_delta;
+            } else {
+                start = orig_start + start_delta;
+            }
+        }
+
+        if (index->stop == mp_const_none) {
+            stop = orig_stop;
+        } else {
+            mp_int_t stop_delta = mp_obj_get_int(index->stop);
+            if (stop_delta < 0) {
+                stop = orig_stop + stop_delta;
+            } else {
+                stop = orig_start + stop_delta;
+            }
+        }
+
+        if (!(index->step == mp_const_none || index->step == MP_OBJ_NEW_SMALL_INT(1))) {
+            mp_raise_NotImplementedError(MP_ERROR_TEXT("only slices with step=1 (aka None) are supported"));
+        }
+
+        if (!(start <= stop)) {
+            mp_raise_NotImplementedError(MP_ERROR_TEXT("only slices with start<=stop are supported"));
+        }
+
+        if (!((stop - start) % item_sz == 0)) {
+            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("slice must have a %d byte aligned size"), item_sz);
+        }
+
+        if (value == MP_OBJ_SENTINEL) {
+            // read
+            mp_obj_array_t *region = m_new_obj(mp_obj_array_t); // region will be returned, needs to be heap-allocated
+            memcpy(region, self, sizeof(mp_obj_array_t));
+            region->len = (stop - start) / item_sz;
+            region->items = (void *)start;
+            return MP_OBJ_FROM_PTR(region);
+        } else {
+            // write
+            mp_obj_array_t region = *self; // region  never leaves the fn, can just be on the stack
+            region.len = (stop - start) / item_sz;
+            region.items = (void *)start;
+
+            if ((mp_obj_is_obj(value) && MP_OBJ_TYPE_GET_SLOT_OR_NULL(((mp_obj_base_t *)MP_OBJ_TO_PTR(value))->type, subscr) == array_subscr) || mp_obj_is_type(value, &mp_type_memx)) {
+                // value is array, bytearray or memoryview
+                mp_obj_array_t *value_arr = MP_OBJ_TO_PTR(value);
+                if (item_sz != mp_binary_get_size('@', value_arr->typecode & TYPECODE_MASK, NULL)) {
+                compat_error:
+                    mp_raise_ValueError(MP_ERROR_TEXT("lhs and rhs should be compatible"));
+                }
+            } else if (mp_obj_is_type(value, &mp_type_bytes)) {
+                if (item_sz != 1) {
+                    goto compat_error;
+                }
+            }
+
+            mp_obj_iter_buf_t iter_buf;
+            mp_obj_t iter;
+            if (mp_getiter_maybe(value, &iter_buf, &iter)) {
+                mp_obj_t item;
+                uintptr_t offset = 0;
+                size_t count = region.len; // overflow-safe decrement-style loop bound
+                while (count-- != 0 && (item = mp_iternext(iter)) != MP_OBJ_STOP_ITERATION) {
+                    mp_obj_t offset_out = mp_obj_new_int_from_uint(offset++);
+                    if (item != mp_const_none) { // support masked writes
+                        memx_subscr(MP_OBJ_FROM_PTR(&region), offset_out, item);
+                    }
+                }
+            } else {
+                uintptr_t offset = 0;
+                size_t count = region.len; // overflow-safe decrement-style loop bound
+                while (count-- != 0) {
+                    mp_obj_t offset_out = mp_obj_new_int_from_ull(offset++);
+                    memx_subscr(MP_OBJ_FROM_PTR(&region), offset_out, value);
+                }
+            }
+            return mp_const_none;
+        }
+    } else
+    #endif // MICROPY_PY_BUILTINS_SLICE
+    {
+        if (value == MP_OBJ_SENTINEL) {
+            // load
+            uintptr_t addr = MICROPY_MACHINE_MEM_GET_READ_ADDR(index_in, item_sz);
+            uint32_t val;
+            switch (item_sz) {
+                case 1:
+                    val = (*(uint8_t *)addr);
+                    break;
+                case 2:
+                    val = (*(uint16_t *)addr);
+                    break;
+                default:
+                    val = (*(uint32_t *)addr);
+                    break;
+            }
+            return mp_obj_new_int(val);
+        } else {
+            // store
+            uintptr_t addr = MICROPY_MACHINE_MEM_GET_WRITE_ADDR(index_in, item_sz);
+            uint32_t val = mp_obj_get_int_truncated(value);
+            switch (item_sz) {
+                case 1:
+                    (*(uint8_t *)addr) = val;
+                    break;
+                case 2:
+                    (*(uint16_t *)addr) = val;
+                    break;
+                default:
+                    (*(uint32_t *)addr) = val;
+                    break;
+            }
+            return mp_const_none;
+        }
+    }
+}
+
 static mp_int_t array_get_buffer(mp_obj_t o_in, mp_buffer_info_t *bufinfo, mp_uint_t flags) {
     mp_obj_array_t *o = MP_OBJ_TO_PTR(o_in);
     size_t sz = mp_binary_get_size('@', o->typecode & TYPECODE_MASK, NULL);
@@ -657,6 +840,20 @@ MP_DEFINE_CONST_OBJ_TYPE(
     MEMORYVIEW_TYPE_LOCALS_DICT
     MEMORYVIEW_TYPE_ATTR
     subscr, array_subscr,
+    buffer, array_get_buffer
+    );
+#endif // MICROPY_PY_BUILTINS_MEMORYVIEW
+
+#if MICROPY_PY_MACHINE_MEMX
+MP_DEFINE_CONST_OBJ_TYPE(
+    mp_type_memx,
+    MP_QSTR_memx,
+    MP_TYPE_FLAG_EQ_CHECKS_OTHER_TYPE | MP_TYPE_FLAG_ITER_IS_GETITER,
+    print, memx_print,
+    iter, array_iterator_new,
+    unary_op, array_unary_op,
+    binary_op, array_binary_op,
+    subscr, memx_subscr,
     buffer, array_get_buffer
     );
 #endif // MICROPY_PY_BUILTINS_MEMORYVIEW
