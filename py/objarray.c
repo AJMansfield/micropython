@@ -128,12 +128,16 @@ static void memx_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_
     (void)kind;
     mp_obj_array_t *self = MP_OBJ_TO_PTR(self_in);
     size_t item_sz = mp_binary_get_size('@', self->typecode & TYPECODE_MASK, NULL);
-    mp_printf(print, "<%u-bit memory>", 8 * item_sz);
-
     uintptr_t start = (uintptr_t)self->items;
     uintptr_t stop = start + (self->len * item_sz);
-    if (start != 0 || stop != UINTPTR_MAX) {
-        mp_printf(print, "[%p:%p]", start, stop);
+    if (start == 0 && stop == 0) {
+        mp_printf(print, "<%u-bit memory>", 8 * item_sz);
+    } else if (start != 0 && stop == 0) {
+        mp_printf(print, "mem%u[0x%p:]", 8 * item_sz, start);
+    } else if (start == 0 && stop != 0) {
+        mp_printf(print, "mem%u[:0x%p]", 8 * item_sz, stop);
+    } else {
+        mp_printf(print, "mem%u[0x%p:0x%p]", 8 * item_sz, start, stop);
     }
 }
 #endif
@@ -310,13 +314,15 @@ static void memoryview_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
 
 #endif
 
+
+
 static mp_obj_t array_unary_op(mp_unary_op_t op, mp_obj_t o_in) {
     mp_obj_array_t *o = MP_OBJ_TO_PTR(o_in);
     switch (op) {
         case MP_UNARY_OP_BOOL:
             return mp_obj_new_bool(o->len != 0);
         case MP_UNARY_OP_LEN:
-            return MP_OBJ_NEW_SMALL_INT(o->len);
+            return mp_obj_new_int_from_uint(o->len);
         default:
             return MP_OBJ_NULL;      // op not supported
     }
@@ -338,7 +344,7 @@ static mp_obj_t array_binary_op(mp_binary_op_t op, mp_obj_t lhs_in, mp_obj_t rhs
     switch (op) {
         case MP_BINARY_OP_ADD: {
             #if MICROPY_PY_BUILTINS_MEMORYVIEW
-            if (lhs->base.type == &mp_type_memoryview) {
+            if (lhs->base.type == &mp_type_memoryview || lhs->base.type == &mp_type_memx) {
                 return MP_OBJ_NULL; // op not supported
             }
             #endif
@@ -362,7 +368,7 @@ static mp_obj_t array_binary_op(mp_binary_op_t op, mp_obj_t lhs_in, mp_obj_t rhs
 
         case MP_BINARY_OP_INPLACE_ADD: {
             #if MICROPY_PY_BUILTINS_MEMORYVIEW
-            if (lhs->base.type == &mp_type_memoryview) {
+            if (lhs->base.type == &mp_type_memoryview || lhs->base.type == &mp_type_memx) {
                 return MP_OBJ_NULL; // op not supported
             }
             #endif
@@ -669,7 +675,7 @@ static mp_obj_t memx_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value)
             mp_raise_NotImplementedError(MP_ERROR_TEXT("only slices with step=1 (aka None) are supported"));
         }
 
-        if (!(start <= stop)) {
+        if (!(start <= stop || stop == 0)) { // stop == 0 is the outcome of an overflow to zero
             mp_raise_NotImplementedError(MP_ERROR_TEXT("only slices with start<=stop are supported"));
         }
 
@@ -680,7 +686,7 @@ static mp_obj_t memx_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value)
         if (value == MP_OBJ_SENTINEL) {
             // read
             mp_obj_array_t *region = m_new_obj(mp_obj_array_t); // region will be returned, needs to be heap-allocated
-            memcpy(region, self, sizeof(mp_obj_array_t));
+            *region = *self;
             region->len = (stop - start) / item_sz;
             region->items = (void *)start;
             return MP_OBJ_FROM_PTR(region);
@@ -710,17 +716,19 @@ static mp_obj_t memx_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value)
                 uintptr_t offset = 0;
                 size_t count = region.len; // overflow-safe decrement-style loop bound
                 while (count-- != 0 && (item = mp_iternext(iter)) != MP_OBJ_STOP_ITERATION) {
-                    mp_obj_t offset_out = mp_obj_new_int_from_uint(offset++);
+                    mp_obj_t index_out = mp_obj_new_int_from_uint(offset);
                     if (item != mp_const_none) { // support masked writes
-                        memx_subscr(MP_OBJ_FROM_PTR(&region), offset_out, item);
+                        memx_subscr(MP_OBJ_FROM_PTR(&region), index_out, item);
                     }
+                    offset += item_sz;
                 }
             } else {
                 uintptr_t offset = 0;
                 size_t count = region.len; // overflow-safe decrement-style loop bound
                 while (count-- != 0) {
-                    mp_obj_t offset_out = mp_obj_new_int_from_ull(offset++);
-                    memx_subscr(MP_OBJ_FROM_PTR(&region), offset_out, value);
+                    mp_obj_t index_out = mp_obj_new_int_from_ull(offset);
+                    memx_subscr(MP_OBJ_FROM_PTR(&region), index_out, value);
+                    offset += item_sz;
                 }
             }
             return mp_const_none;
@@ -730,7 +738,7 @@ static mp_obj_t memx_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value)
     {
         if (value == MP_OBJ_SENTINEL) {
             // load
-            uintptr_t addr = MICROPY_MACHINE_MEM_GET_READ_ADDR(index_in, item_sz);
+            uintptr_t addr = (uintptr_t)self->items + MICROPY_MACHINE_MEM_GET_READ_ADDR(index_in, item_sz);
             uint32_t val;
             switch (item_sz) {
                 case 1:
@@ -746,7 +754,7 @@ static mp_obj_t memx_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value)
             return mp_obj_new_int(val);
         } else {
             // store
-            uintptr_t addr = MICROPY_MACHINE_MEM_GET_WRITE_ADDR(index_in, item_sz);
+            uintptr_t addr = (uintptr_t)self->items + MICROPY_MACHINE_MEM_GET_WRITE_ADDR(index_in, item_sz);
             uint32_t val = mp_obj_get_int_truncated(value);
             switch (item_sz) {
                 case 1:
@@ -853,6 +861,10 @@ MP_DEFINE_CONST_OBJ_TYPE(
     iter, array_iterator_new,
     unary_op, array_unary_op,
     binary_op, array_binary_op,
+#if MICROPY_PY_BUILTINS_MEMORYVIEW
+    MEMORYVIEW_TYPE_LOCALS_DICT
+    MEMORYVIEW_TYPE_ATTR
+#endif
     subscr, memx_subscr,
     buffer, array_get_buffer
     );

@@ -30,8 +30,8 @@
 
 #if MICROPY_PY_MACHINE_MEMX
 
-const mp_obj_array_t machine_mem8_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'B', 0, UINTPTR_MAX, (void *)0};
-const mp_obj_array_t machine_mem16_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'H', 0, UINTPTR_MAX / 2, (void *)0};
-const mp_obj_array_t machine_mem32_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'I', 0, UINTPTR_MAX / 4, (void *)0};
+const mp_obj_array_t machine_mem8_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'B', 0, SIZE_MAX + 1, (void *)0};
+const mp_obj_array_t machine_mem16_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'H', 0, SIZE_MAX / 2 + 1, (void *)0};
+const mp_obj_array_t machine_mem32_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'I', 0, SIZE_MAX / 4 + 1, (void *)0};
 
 #endif // MICROPY_PY_MACHINE_MEMX
