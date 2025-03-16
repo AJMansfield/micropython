@@ -32,10 +32,10 @@ class Test(unittest.TestCase):
         with self.assertRaises(TypeError):
             del machine.mem8[0]
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(NotImplementedError):
             machine.mem8[0:1:2]
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(NotImplementedError):
             machine.mem8[1:0]
 
         with self.assertRaises(TypeError):
