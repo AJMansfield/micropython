@@ -632,6 +632,7 @@ static mp_obj_t array_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value
     }
 }
 
+#if MICROPY_PY_MACHINE_MEMX
 static mp_obj_t memx_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value) {
     if (value == MP_OBJ_NULL) {
         // delete
@@ -791,6 +792,7 @@ static mp_int_t array_get_buffer(mp_obj_t o_in, mp_buffer_info_t *bufinfo, mp_ui
     #endif
     return 0;
 }
+#endif // MICROPY_PY_MACHINE_MEMX
 
 #if MICROPY_PY_ARRAY
 MP_DEFINE_CONST_OBJ_TYPE(
