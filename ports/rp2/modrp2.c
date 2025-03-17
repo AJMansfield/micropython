@@ -95,6 +95,17 @@ static const mp_rom_map_elem_t rp2_module_globals_table[] = {
     // Deprecated (use network.country instead).
     { MP_ROM_QSTR(MP_QSTR_country),             MP_ROM_PTR(&mod_network_country_obj) },
     #endif
+
+    #if PICO_RP2040
+    { MP_ROM_QSTR(MP_QSTR_is_rp2040),           MP_ROM_TRUE },
+    #else
+    { MP_ROM_QSTR(MP_QSTR_is_rp2040),           MP_ROM_FALSE },
+    #endif
+    #if PICO_RP2350
+    { MP_ROM_QSTR(MP_QSTR_is_rp2350),           MP_ROM_TRUE },
+    #else
+    { MP_ROM_QSTR(MP_QSTR_is_rp2350),           MP_ROM_FALSE },
+    #endif
 };
 static MP_DEFINE_CONST_DICT(rp2_module_globals, rp2_module_globals_table);
 
