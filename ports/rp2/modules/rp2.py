@@ -42,7 +42,7 @@ class PIOASMEmit:
         from array import array
 
         self.labels = {}
-        if 'RP2350' in sys.implementation._machine:
+        if is_rp2350:
             execctrl = side_pindir << 29 | (status_sel & 0x3) << 5 | (status_n & 0x1F)
         else:
             execctrl = side_pindir << 29 | (status_sel & 0x1) << 4 | (status_n & 0x0F)
