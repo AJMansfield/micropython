@@ -811,6 +811,7 @@ extern const mp_obj_type_t mp_type_str;
 extern const mp_obj_type_t mp_type_bytes;
 extern const mp_obj_type_t mp_type_bytearray;
 extern const mp_obj_type_t mp_type_memoryview;
+extern const mp_obj_type_t mp_type_memx;
 extern const mp_obj_type_t mp_type_float;
 extern const mp_obj_type_t mp_type_complex;
 extern const mp_obj_type_t mp_type_tuple;

@@ -34,6 +34,10 @@
 #include "drivers/bus/spi.h"
 #endif
 
+#if MICROPY_PY_MACHINE_MEMX
+#include "py/objarray.h"
+#endif
+
 // Whether to enable the ADC.init() method.
 // Requires a port to implement mp_machine_adc_init_helper().
 #ifndef MICROPY_PY_MACHINE_ADC_INIT
@@ -192,10 +196,12 @@ typedef struct _mp_machine_soft_spi_obj_t {
 
 #endif
 
+#if MICROPY_PY_MACHINE_MEMX
 // Objects for machine.mem8, machine.mem16 and machine.mem32.
-extern const machine_mem_obj_t machine_mem8_obj;
-extern const machine_mem_obj_t machine_mem16_obj;
-extern const machine_mem_obj_t machine_mem32_obj;
+extern const mp_obj_array_t machine_mem8_obj;
+extern const mp_obj_array_t machine_mem16_obj;
+extern const mp_obj_array_t machine_mem32_obj;
+#endif
 
 // These classes correspond to machine.Type entries in the machine module.
 // Their Python bindings are implemented in extmod, and their implementation
