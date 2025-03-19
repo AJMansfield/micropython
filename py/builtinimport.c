@@ -50,9 +50,6 @@
 // Must be a string of one byte.
 #define PATH_SEP_CHAR "/"
 
-// Virtual sys.path entry that maps to the frozen modules.
-#define MP_FROZEN_PATH_PREFIX ".frozen/"
-
 // Wrapper for mp_import_stat (which is provided by the port, and typically
 // uses mp_vfs_import_stat) to also search frozen modules. Given an exact
 // path to a file or directory (e.g. "foo/bar", foo/bar.py" or "foo/bar.mpy"),
