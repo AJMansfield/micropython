@@ -24,6 +24,7 @@ SRC_EXTMOD_C += \
 	extmod/modbtree.c \
 	extmod/modcryptolib.c \
 	extmod/moddeflate.c \
+	extmod/moddis.c \
 	extmod/modframebuf.c \
 	extmod/modhashlib.c \
 	extmod/modheapq.c \
