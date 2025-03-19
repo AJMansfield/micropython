@@ -32,3 +32,4 @@
 
 // non-root; only root can access /dev/mem
 #define MICROPY_PLAT_DEV_MEM  (0)
+#define MICROPY_PY_SYS_SETTRACE (1)
