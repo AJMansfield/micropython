@@ -466,6 +466,22 @@ static mp_obj_t dis_dis(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_ar
 }
 static MP_DEFINE_CONST_FUN_OBJ_KW(dis_dis_obj, 1, dis_dis);
 
+static mp_obj_t dis_getinstructions(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    // dis, disassemble, disco
+    enum { ARG_x, ARG_first_line, ARG_show_caches, ARG_adaptive };
+    mp_arg_t allowed_args[] = {
+        { MP_QSTR_, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_rom_obj = MP_OBJ_NULL} },
+        { MP_QSTR_first_line, MP_ARG_OBJ, {.u_rom_obj = MP_ROM_INT(-1)} },
+        { MP_QSTR_show_caches, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = false} },
+        { MP_QSTR_adaptive, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = false} },
+    };
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    mp_obj_t o = dis_bytecode_make_new(&dis_bytecode_type, 2, 0, &args[ARG_x].u_obj);
+    return dis_bytecode_getiter(o, NULL);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(dis_getinstructions_obj, 1, dis_getinstructions);
 
 static const mp_rom_map_elem_t mp_module_dis_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_dis) },
@@ -475,13 +491,13 @@ static const mp_rom_map_elem_t mp_module_dis_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_code_info),  MP_ROM_PTR(&dis_codeinfo_obj) },
     { MP_ROM_QSTR(MP_QSTR_show_code),  MP_ROM_PTR(&dis_showcode_obj) },
     { MP_ROM_QSTR(MP_QSTR_dis), MP_ROM_PTR(&dis_dis_obj) },
-    { MP_ROM_QSTR(MP_QSTR_distb), MP_ROM_NONE },
+    // { MP_ROM_QSTR(MP_QSTR_distb), MP_ROM_NONE },
     { MP_ROM_QSTR(MP_QSTR_disassemble), MP_ROM_PTR(&dis_dis_obj) },
     { MP_ROM_QSTR(MP_QSTR_disco), MP_ROM_PTR(&dis_dis_obj) },
-    { MP_ROM_QSTR(MP_QSTR_get_instructions), MP_ROM_NONE },
-    { MP_ROM_QSTR(MP_QSTR_findlinestarts), MP_ROM_NONE },
-    { MP_ROM_QSTR(MP_QSTR_findlabels), MP_ROM_NONE },
-    { MP_ROM_QSTR(MP_QSTR_stack_effect), MP_ROM_NONE },
+    { MP_ROM_QSTR(MP_QSTR_get_instructions), MP_ROM_PTR(&dis_getinstructions_obj) },
+    // { MP_ROM_QSTR(MP_QSTR_findlinestarts), MP_ROM_NONE },
+    // { MP_ROM_QSTR(MP_QSTR_findlabels), MP_ROM_NONE },
+    // { MP_ROM_QSTR(MP_QSTR_stack_effect), MP_ROM_NONE },
 };
 static MP_DEFINE_CONST_DICT(mp_module_dis_globals, mp_module_dis_globals_table);
 
