@@ -107,16 +107,20 @@ static mp_obj_t raw_code_lnotab(const mp_raw_code_t *rc) {
     return o;
 }
 
-static mp_obj_t code_colines(mp_obj_t self_in) {
+static mp_obj_t code_colines_iter(mp_obj_t);
+static mp_obj_t code_colines_next(mp_obj_t);
+
+static mp_obj_t code_colines_iter(mp_obj_t self_in) {
     mp_obj_code_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_colines_iter_t *iter = mp_obj_malloc(mp_obj_colines_iter_t, &mp_type_colines_iter);
     iter->rc = self->rc;
     iter->bc = 0;
     iter->source_line = 1;
     iter->ci = self->rc->prelude.line_info;
+    code_colines_next(MP_OBJ_FROM_PTR(iter));
     return MP_OBJ_FROM_PTR(iter);
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(code_colines_obj, code_colines);
+static MP_DEFINE_CONST_FUN_OBJ_1(code_colines_obj, code_colines_iter);
 
 static mp_obj_t code_colines_next(mp_obj_t iter_in) {
     mp_obj_colines_iter_t *iter = MP_OBJ_TO_PTR(iter_in);
