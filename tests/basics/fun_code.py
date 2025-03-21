@@ -34,3 +34,7 @@ try:
     ftype(f.__code__, None)
 except TypeError:
     print("TypeError")
+
+# Test that __code__.co_lines covers all of the function's lines
+for start, end, line_no in code.co_lines():
+    print(line_no)
