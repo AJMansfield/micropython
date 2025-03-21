@@ -23,3 +23,8 @@
 // If this returns true for a pin then its irq will not be disabled on a soft reboot
 int mp_hal_is_pin_reserved(int n);
 #define MICROPY_HW_PIN_RESERVED(i) mp_hal_is_pin_reserved(i)
+
+#define MICROPY_HW_ENABLE_UART_REPL (1)
+#define MICROPY_HW_USB_MSC (1)
+#undef SYS_CLK_KHZ
+#define SYS_CLK_KHZ (250000)
