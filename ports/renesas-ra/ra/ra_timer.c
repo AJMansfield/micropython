@@ -92,14 +92,14 @@ void ra_agt_timer_set_freq(uint32_t ch, float freq) {
     ra_agt_counter[ch] = 0;
     if (freq > (float)(PCLK / 2)) {
         return;
-    } else if (freq > 1000.0) {
+    } else if (freq > 1000.0f) {
         source = AGT_PCLKB2;
         period = (uint16_t)((float)(PCLK / 2) / freq);
-    } else if (freq > 1.0) {
+    } else if (freq > 1.0f) {
         source = AGT_AGTSCLK;
         cks = 2;
         period = (uint16_t)((float)(32768 / 4) / freq);
-    } else if (freq > 0.01) {
+    } else if (freq > 0.01f) {
         source = AGT_AGTSCLK;
         period = (uint16_t)((float)(32768 / 128) / freq);
         cks = 7;
