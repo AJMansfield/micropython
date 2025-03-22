@@ -47,11 +47,15 @@ static mp_obj_t mp_time_localtime_get(void) {
     return mp_obj_new_tuple(8, tuple);
 }
 
+#if MICROPY_PY_TIME_FLOAT && HAS_RP2040_RTC
+#warning "MICROPY_PY_TIME_FLOAT is not supported on this platform."
+#endif
+
 // Return the number of seconds since the Epoch.
 static mp_obj_t mp_time_time_get(void) {
     struct timespec ts;
     aon_timer_get_time(&ts);
-    #if MICROPY_PY_TIME_FLOAT
+    #if MICROPY_PY_TIME_FLOAT && HAS_POWMAN_TIMER
     mp_float_t val = ts.tv_sec + (mp_float_t)ts.tv_nsec / (1000 * 1000 * 1000);
     return mp_obj_new_float(val);
     #else
