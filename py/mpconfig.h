@@ -866,6 +866,14 @@ typedef double mp_float_t;
 #define MICROPY_FLOAT_HIGH_QUALITY_HASH (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EVERYTHING)
 #endif
 
+// Whether to use floating point output for `time.time()`.
+// Single-precision floats are not adequate; REPR_C floats can't represent whole numbers precisely
+// past 4194304.0, i.e. any unix timestamp later than Feb 18, 1970. Double precision is needed
+// for floating point output to be meaningfully useful.
+#ifndef MICROPY_EXTMOD_TIME_FLOAT
+#define MICROPY_EXTMOD_TIME_FLOAT (MICROPY_CPYTHON_COMPAT ? (MICROPY_PY_BUILTINS_FLOAT && MICROPY_FLOAT_IMPL >= MICROPY_FLOAT_IMPL_DOUBLE) : 0)
+#endif
+
 // Enable features which improve CPython compatibility
 // but may lead to more code size/memory usage.
 // TODO: Originally intended as generic category to not
