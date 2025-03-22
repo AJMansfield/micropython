@@ -50,6 +50,10 @@ static mp_obj_t mp_time_localtime_get(void) {
     return mp_obj_new_tuple(8, tuple);
 }
 
+#if MICROPY_PY_TIME_FLOAT && !MICROPY_HW_RTC_USE_US
+#warning "MICROPY_PY_TIME_FLOAT is not supported on this platform."
+#endif
+
 // Returns the number of seconds, as an integer, since 1/1/2000.
 static mp_obj_t mp_time_time_get(void) {
     // get date and time
@@ -59,15 +63,11 @@ static mp_obj_t mp_time_time_get(void) {
     RTC_TimeTypeDef time;
     HAL_RTC_GetTime(&RTCHandle, &time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&RTCHandle, &date, RTC_FORMAT_BIN);
-    #if MICROPY_PY_BUILTINS_FLOAT && MICROPY_FLOAT_IMPL >= MICROPY_FLOAT_IMPL_DOUBLE
-    mp_float_t val = timeutils_seconds_since_epoch(2000 + date.Year, date.Month, date.Date, time.Hours, time.Minutes, time.Seconds);
-    if (time.SecondFraction == UINT32_MAX) {
-        val += (mp_float_t)time.SubSeconds / ((uint64_t)time.SecondFraction + 1);
-    } else {
-        val += (mp_float_t)time.SubSeconds / (time.SecondFraction + 1);
-    }
+    uint64_t secs = timeutils_seconds_since_epoch(2000 + date.Year, date.Month, date.Date, time.Hours, time.Minutes, time.Seconds);
+    #if MICROPY_PY_TIME_FLOAT && MICROPY_HW_RTC_USE_US
+    mp_float_t val = secs + (mp_float_t)rtc_subsec_to_us(time.SubSeconds) / (1000 * 1000);
     return mp_obj_new_float(val);
     #else
-    return mp_obj_new_int(timeutils_seconds_since_epoch(2000 + date.Year, date.Month, date.Date, time.Hours, time.Minutes, time.Seconds));
+    return mp_obj_new_int_from_ull(secs);
     #endif
 }
