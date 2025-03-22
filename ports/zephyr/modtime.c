@@ -30,11 +30,7 @@
 #include "py/obj.h"
 
 static mp_obj_t mp_time_time_get(void) {
-    /* The absence of FP support is deliberate. The Zephyr port uses
-     * single precision floats so the fraction component will start to
-     * lose precision on devices with a long uptime.
-     */
-    #if MICROPY_PY_BUILTINS_FLOAT && MICROPY_FLOAT_IMPL >= MICROPY_FLOAT_IMPL_DOUBLE
+    #if MICROPY_PY_TIME_FLOAT
     return mp_obj_new_float((mp_float_t)k_uptime_get() / 1000);
     #else
     return mp_obj_new_int(k_uptime_get() / 1000);
