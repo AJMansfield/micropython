@@ -47,11 +47,16 @@ static mp_obj_t mp_time_localtime_get(void) {
     return mp_obj_new_tuple(8, tuple);
 }
 
+#if MICROPY_PY_TIME_FLOAT
+#warning "MICROPY_PY_TIME_FLOAT is not supported on this platform."
+#endif
+
 // Returns the number of seconds, as an integer, since the Epoch.
 static mp_obj_t mp_time_time_get(void) {
     // get date and time
     rtc_init_finalise();
     ra_rtc_t time;
     ra_rtc_get_time(&time);
-    return mp_obj_new_int(timeutils_seconds_since_epoch(time.year, time.month, time.date, time.hour, time.minute, time.second));
+    return mp_obj_new_int_from_ull(timeutils_seconds_since_epoch(
+        time.year, time.month, time.date, time.hour, time.minute, time.second));
 }
