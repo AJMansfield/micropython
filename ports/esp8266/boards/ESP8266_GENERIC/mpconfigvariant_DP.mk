@@ -1,5 +1,11 @@
+# hollow out to create enough space for the softdouble libs
 LD_FILES = boards/esp8266_2MiB.ld
-CFLAGS += -DMICROPY_ESP8266_2M
+CFLAGS += -DMICROPY_ESP8266_512K
+MICROPY_PY_ESPNOW = 0
+MICROPY_PY_BTREE = 0
+MICROPY_VFS_FAT = 0
+MICROPY_VFS_LFS2 = 0
+FROZEN_MANIFEST = 
 
 MICROPY_FLOAT_IMPL = double
 
