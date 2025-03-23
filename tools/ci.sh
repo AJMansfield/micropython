@@ -194,6 +194,12 @@ function ci_esp32_build_s3_c3 {
     make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_C3
 }
 
+function ci_esp32_build_dp {
+    ci_esp32_build_common
+
+    make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC BOARD_VARIANT=DP
+}
+
 ########################################################################################
 # ports/esp8266
 
