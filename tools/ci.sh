@@ -221,6 +221,7 @@ function ci_esp8266_build {
     make ${MAKEOPTS} -C ports/esp8266 BOARD=ESP8266_GENERIC
     make ${MAKEOPTS} -C ports/esp8266 BOARD=ESP8266_GENERIC BOARD_VARIANT=FLASH_512K
     make ${MAKEOPTS} -C ports/esp8266 BOARD=ESP8266_GENERIC BOARD_VARIANT=FLASH_1M
+    make ${MAKEOPTS} -C ports/esp8266 BOARD=ESP8266_GENERIC BOARD_VARIANT=DP
 
     # Test building native .mpy with xtensa architecture.
     ci_native_mpy_modules_build xtensa
