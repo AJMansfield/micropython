@@ -42,7 +42,9 @@
 #define MICROPY_PY_RANDOM_EXTRA_FUNCS           (0)
 
 // Configure other options.
+#ifndef MICROPY_OBJ_REPR
 #define MICROPY_OBJ_REPR            (MICROPY_OBJ_REPR_C)
+#endif
 #define MICROPY_GC_STACK_ENTRY_TYPE uint16_t
 #define MICROPY_ALLOC_PATH_MAX      (128)
 #define MICROPY_ALLOC_LEXER_INDENT_INIT (8)
