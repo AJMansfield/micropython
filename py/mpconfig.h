@@ -1631,6 +1631,21 @@ typedef double mp_float_t;
 #define MICROPY_PY_TIME_TIME_TIME_NS (0)
 #endif
 
+// Whether the port implements a method to provide sub-second resolution in time.time
+#ifndef MICROPY_PY_TIME_TIME_HAS_SUBSECOND
+#define MICROPY_PY_TIME_TIME_HAS_SUBSECOND (0)
+#endif
+
+// Whether to use floating point output for time.time.
+// - Single-precision is not adequate for this; REPR_C floats aren't precise to whole
+//   seconds past 4194304.0, i.e. any unix timestamp later than Feb 18, 1970.
+// - Many ports don't support floating output at all; someone building a port may wish
+//   to turn this off even where supported to make things consistent with other ports,
+//   even if that makes them less consistent with CPython.
+#ifndef MICROPY_PY_TIME_TIME_FLOAT
+#define MICROPY_PY_TIME_TIME_FLOAT (MICROPY_CPYTHON_COMPAT ? (MICROPY_PY_TIME_TIME_HAS_SUBSECOND && MICROPY_PY_BUILTINS_FLOAT && MICROPY_FLOAT_IMPL >= MICROPY_FLOAT_IMPL_DOUBLE) : 0)
+#endif
+
 // Period of values returned by time.ticks_ms(), ticks_us(), ticks_cpu()
 // functions. Should be power of two. All functions above use the same
 // period, so if underlying hardware/API has different periods, the
