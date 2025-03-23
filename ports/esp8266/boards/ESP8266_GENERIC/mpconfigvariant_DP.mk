@@ -1,4 +1,9 @@
+LD_FILES = boards/esp8266_2MiB.ld
+
 MICROPY_FLOAT_IMPL = double
+
+# Configure mpconfigboard.h.
+CFLAGS += -DMICROPY_ESP8266_2M
 CFLAGS_EXTRA += -DMICROPY_FLOAT_IMPL=MICROPY_FLOAT_IMPL_DOUBLE
 CFLAGS_EXTRA += -DMICROPY_OBJ_REPR=MICROPY_OBJ_REPR_B
 CFLAGS_EXTRA += -fno-single-precision-constant -Wno-double-promotion
