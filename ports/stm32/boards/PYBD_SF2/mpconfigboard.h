@@ -73,7 +73,9 @@ void board_sleep(int value);
 #define MICROPY_HW_SOFTQSPI_SCK_LOW(self) (GPIOE->BSRR = (0x10000 << 11))
 #define MICROPY_HW_SOFTQSPI_SCK_HIGH(self) (GPIOE->BSRR = (1 << 11))
 #define MICROPY_HW_SOFTQSPI_NIBBLE_READ(self) ((GPIOE->IDR >> 7) & 0xf)
+#ifndef MICROPY_HW_SPIFLASH_SIZE_BITS
 #define MICROPY_HW_SPIFLASH_SIZE_BITS (16 * 1024 * 1024)
+#endif
 #define MICROPY_HW_SPIFLASH_CS      (pyb_pin_QSPI1_CS)
 #define MICROPY_HW_SPIFLASH_SCK     (pyb_pin_QSPI1_CLK)
 #define MICROPY_HW_SPIFLASH_IO0     (pyb_pin_QSPI1_D0)
