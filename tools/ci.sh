@@ -379,6 +379,10 @@ function ci_rp2_build {
     # Test building ninaw10 driver and NIC interface.
     make ${MAKEOPTS} -C ports/rp2 BOARD=ARDUINO_NANO_RP2040_CONNECT submodules
     make ${MAKEOPTS} -C ports/rp2 BOARD=ARDUINO_NANO_RP2040_CONNECT
+
+    # Test building with double-precision float support.
+    make ${MAKEOPTS} -C ports/rp2 BOARD=RPI_PICO BOARD_VARIANT=DP
+    make ${MAKEOPTS} -C ports/rp2 BOARD=RPI_PICO2 BOARD_VARIANT=DP
 }
 
 ########################################################################################
