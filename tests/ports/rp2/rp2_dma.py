@@ -69,6 +69,10 @@ def run_and_time_dma(dma):
     return time.ticks_diff(t1, t0)
 
 
+def us_to_sysclks(dt, freq=machine.freq()):
+    return dt * freq // 1_000_000
+
+
 print("# test timing")
 dest = bytearray(16 * 1024)
 dma = rp2.DMA()
@@ -77,8 +81,13 @@ dma.write = dest
 dma.count = len(dest) // 4
 dma.ctrl = dma.pack_ctrl()
 dt = run_and_time_dma(dma)
-expected_dt_range = range(40, 70) if is_rp2350 else range(70, 125)
-print(dt in expected_dt_range)
+sysclks = us_to_sysclks(dt)
+expected_sysclk_range = range(
+    4000, 20000
+)  # expecting 4096 transfers @ 1-per-sysclk; plus possibly quite a lot of overhead
+print(sysclks in expected_sysclk_range)
+if sysclks not in expected_sysclk_range:
+    print(sysclks, expected_sysclk_range)
 print(dest[:8], dest[-8:])
 dma.close()
 
