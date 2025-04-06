@@ -54,13 +54,26 @@ listdir_result = namedtuple("dir_result", ["name", "st_mode", "st_ino", "st_size
 
 
 # Takes a Transport error (containing the text of an OSError traceback) and
-# raises it as the corresponding OSError-derived exception.
+# returns it as the corresponding OSError-derived exception.
 def _convert_filesystem_error(e, info):
     if "OSError" in e.error_output:
-        for code, estr in errno.errorcode.items():
-            if estr in e.error_output:
-                return OSError(code, info)
-    return e
+        codes = sorted(  # treat earliest-in-string EWHATEVER as primary error
+            [code for code, estr in errno.errorcode.items() if estr in e.error_output],
+            key=lambda code: e.error_output.index(errno.errcode[code]),
+        )
+
+        if not codes:
+            return e
+
+        code, *other_codes = codes
+        if other_codes:  # e.g. OSError(EIO, "catastrophic error (+EPERM, EAGAIN, EFAULT, ENOMEM)")
+            info += " (+" + ", ".join(errno.errorcode[code] for code in other_codes) + ")"
+
+        err = OSError(code, info)
+        err.__cause__ = e
+        return err
+    else:
+        return e
 
 
 class Transport:
