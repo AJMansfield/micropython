@@ -1,0 +1,143 @@
+mkdir :errno_files
+touch :errno_files/ENOENT
+touch :errno_files/EISDIR
+touch :errno_files/EEXIST
+touch :errno_files/ENODEV
+mkdir :errno_dirs
+mkdir :errno_dirs/ENOENT
+mkdir :errno_dirs/EISDIR
+mkdir :errno_dirs/EEXIST
+mkdir :errno_dirs/ENODEV
+mkdir :errno_empty
+-----
+rmdir :errno_fs/ENOENT
+mpremote: rmdir: errno_fs/ENOENT: No such file or directory.
+rmdir :errno_fs/EISDIR
+mpremote: rmdir: errno_fs/EISDIR: No such file or directory.
+rmdir :errno_fs/EEXIST
+mpremote: rmdir: errno_fs/EEXIST: No such file or directory.
+rmdir :errno_fs/ENODEV
+mpremote: rmdir: errno_fs/ENODEV: No such file or directory.
+-----
+mpremote: cat: errno_fs/ENOENT: No such file or directory.
+mpremote: cat: errno_fs/EISDIR: No such file or directory.
+mpremote: cat: errno_fs/EEXIST: No such file or directory.
+mpremote: cat: errno_fs/ENODEV: No such file or directory.
+-----
+mkdir :errno_fs/ENOENT
+mpremote: mkdir: errno_fs/ENOENT: No such file or directory.
+mkdir :errno_fs/EISDIR
+mpremote: mkdir: errno_fs/EISDIR: No such file or directory.
+mkdir :errno_fs/EEXIST
+mpremote: mkdir: errno_fs/EEXIST: No such file or directory.
+mkdir :errno_fs/ENODEV
+mpremote: mkdir: errno_fs/ENODEV: No such file or directory.
+-----
+touch :errno_fs/ENOENT
+mpremote: touch: errno_fs/ENOENT: No such file or directory.
+touch :errno_fs/EISDIR
+mpremote: touch: errno_fs/EISDIR: No such file or directory.
+touch :errno_fs/EEXIST
+mpremote: touch: errno_fs/EEXIST: No such file or directory.
+touch :errno_fs/ENODEV
+mpremote: touch: errno_fs/ENODEV: No such file or directory.
+-----
+rm :errno_fs/ENOENT
+mpremote: rm: errno_fs/ENOENT: No such file or directory.
+rm :errno_fs/EISDIR
+mpremote: rm: errno_fs/EISDIR: No such file or directory.
+rm :errno_fs/EEXIST
+mpremote: rm: errno_fs/EEXIST: No such file or directory.
+rm :errno_fs/ENODEV
+mpremote: rm: errno_fs/ENODEV: No such file or directory.
+-----
+ls :errno_files/ENOENT
+mpremote: ls: errno_files/ENOENT: No such file or directory.
+ls :errno_files/EISDIR
+mpremote: ls: errno_files/EISDIR: No such file or directory.
+ls :errno_files/EEXIST
+mpremote: ls: errno_files/EEXIST: No such file or directory.
+ls :errno_files/ENODEV
+mpremote: ls: errno_files/ENODEV: No such file or directory.
+-----
+mkdir :errno_files/ENOENT
+mpremote: mkdir: errno_files/ENOENT: File exists.
+mkdir :errno_files/EISDIR
+mpremote: mkdir: errno_files/EISDIR: File exists.
+mkdir :errno_files/EEXIST
+mpremote: mkdir: errno_files/EEXIST: File exists.
+mkdir :errno_files/ENODEV
+mpremote: mkdir: errno_files/ENODEV: File exists.
+-----
+rmdir :errno_files/ENOENT
+mpremote: Error with transport:
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+OSError: 20
+
+rmdir :errno_files/EISDIR
+mpremote: Error with transport:
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+OSError: 20
+
+rmdir :errno_files/EEXIST
+mpremote: Error with transport:
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+OSError: 20
+
+rmdir :errno_files/ENODEV
+mpremote: Error with transport:
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+OSError: 20
+
+-----
+mpremote: cat: errno_dirs/ENOENT: No such file or directory.
+mpremote: cat: errno_dirs/EISDIR: No such file or directory.
+mpremote: cat: errno_dirs/EEXIST: No such file or directory.
+mpremote: cat: errno_dirs/ENODEV: No such file or directory.
+-----
+mkdir :errno_dirs/ENOENT
+mpremote: mkdir: errno_dirs/ENOENT: File exists.
+mkdir :errno_dirs/EISDIR
+mpremote: mkdir: errno_dirs/EISDIR: File exists.
+mkdir :errno_dirs/EEXIST
+mpremote: mkdir: errno_dirs/EEXIST: File exists.
+mkdir :errno_dirs/ENODEV
+mpremote: mkdir: errno_dirs/ENODEV: File exists.
+-----
+touch :errno_dirs/ENOENT
+mpremote: Error with transport:
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: [Errno 13] EACCES
+
+touch :errno_dirs/EISDIR
+mpremote: Error with transport:
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: [Errno 13] EACCES
+
+touch :errno_dirs/EEXIST
+mpremote: Error with transport:
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: [Errno 13] EACCES
+
+touch :errno_dirs/ENODEV
+mpremote: Error with transport:
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: [Errno 13] EACCES
+
+-----
+rm :errno_dirs/ENOENT
+mpremote: rm: errno_dirs/ENOENT: Is a directory.
+rm :errno_dirs/EISDIR
+mpremote: rm: errno_dirs/EISDIR: Is a directory.
+rm :errno_dirs/EEXIST
+mpremote: rm: errno_dirs/EEXIST: Is a directory.
+rm :errno_dirs/ENODEV
+mpremote: rm: errno_dirs/ENODEV: Is a directory.
