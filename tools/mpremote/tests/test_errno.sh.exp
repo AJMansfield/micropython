@@ -2,24 +2,46 @@
 mpremote: Error with transport:
 expect error
 -----
-mpremote: cat: ENOENT.py: No such file or directory.
+mpremote: cat: enoent.py (enoent message): No such file or directory.
+expect error
+mpremote: cat: enoent.py: No such file or directory.
 expect error
 -----
-mpremote: cat: EISDIR.py: Is a directory.
+mpremote: cat: eisdir.py (eisdir message): Is a directory.
+expect error
+mpremote: cat: eisdir.py: Is a directory.
 expect error
 -----
-mpremote: cat: EEXIST.py: File exists.
+mpremote: cat: eexist.py (eexist message): File exists.
+expect error
+mpremote: cat: eexist.py: File exists.
 expect error
 -----
-mpremote: cat: ENODEV.py: No such device.
+mpremote: cat: enodev.py (enodev message): No such device.
+expect error
+mpremote: cat: enodev.py: No such device.
 expect error
 -----
-mpremote: cat: EINVAL.py: Invalid argument.
+mpremote: cat: einval.py (einval message): Invalid argument.
+expect error
+mpremote: cat: einval.py: Invalid argument.
 expect error
 -----
-mpremote: cat: EPERM.py: Operation not permitted.
+mpremote: cat: eperm.py (eperm message): Operation not permitted.
+expect error
+mpremote: cat: eperm.py: Operation not permitted.
 expect error
 -----
-mpremote: cat: EOPNOTSUPP.py: Operation not supported.
+mpremote: cat: eopnotsupp.py (eopnotsupp message): Operation not supported.
+expect error
+mpremote: cat: eopnotsupp.py: Operation not supported.
+expect error
+-----
+mpremote: cat: erofs.py (erofs message): Read-only file system.
+expect error
+mpremote: cat: erofs.py: Read-only file system.
+expect error
+-----
+mpremote: cat: ehamlet.py (mismatched ENOTDIR/21): Is a directory.
 expect error
 -----
