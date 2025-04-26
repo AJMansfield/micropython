@@ -557,6 +557,25 @@ function ci_unix_run_tests_full_helper {
     ci_unix_run_tests_full_extra $micropython
 }
 
+function ci_unix_run_tests_mpremote_helper {
+    variant=$1
+    shift
+    tests=tools/mpremote/tests
+    mpremote=../mpremote.py # relative to tests directory
+    micropython=ports/unix/build-$variant/micropython # relative to root directory
+
+    sockdir=$(mktemp -d)
+    mkfifo $sockdir/rx.fifo $sockdir/tx.fifo # rx/tx are from micropython's perspective
+    nc -lU $sockdir/mpy.sock <$sockdir/tx.fifo >$sockdir/rx.fifo & nc_pid=$! # reversed for mpremote's socket
+
+    $micropython <$sockdir/rx.fifo 2>&1 >$sockdir/tx.fifo & mpy_pid=$!
+
+    (cd $tests && MPREMOTE="$mpremote connect port:$sockdir/mpy.sock" ./run-mpremote-tests.sh) ; rc=$?
+
+    kill $mpy_pid $nc_pid
+    return $rc
+}
+
 function ci_native_mpy_modules_build {
     if [ "$1" = "" ]; then
         arch=x64
@@ -597,6 +616,10 @@ function ci_unix_standard_build {
 
 function ci_unix_standard_run_tests {
     ci_unix_run_tests_full_helper standard
+}
+
+function ci_unix_standard_run_mpremote_tests {
+    ci_unix_run_tests_mpremote_helper standard
 }
 
 function ci_unix_standard_v2_build {
