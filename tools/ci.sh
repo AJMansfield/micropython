@@ -526,10 +526,10 @@ function ci_unix_run_tests_mpremote_helper {
     tests=../tools/mpremote/tests
 
     sockdir=$(mktemp -d)
-    mkfifo "${TMP}/rx.fifo" "${TMP}/tx.fifo"
+    mkfifo $sockdir/rx.fifo $sockdir/tx.fifo
 
-    $micropython <"${TMP}/rx.fifo" 2>&1 >"${TMP}/tx.fifo" & mpy_pid=$!
-    nc -lU "${TMP}/mpy.sock" <"${TMP}/tx.fifo" >"${TMP}/rx.fifo" & nc_pid=$!
+    $micropython <$sockdir/rx.fifo 2>&1 >$sockdir/tx.fifo & mpy_pid=$!
+    nc -lU $sockdir/mpy.sock <$sockdir/tx.fifo >$sockdir/rx.fifo & nc_pid=$!
 
     (cd $tests && MPREMOTE="$mpremote connect $sockdir/mpy.sock" ./run-mpremote-tests.sh) ; rc=$?
 
