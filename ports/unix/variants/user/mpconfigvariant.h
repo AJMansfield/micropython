@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013, 2014 Damien P. George
+ * Copyright (c) 2019 Damien P. George
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,14 +24,11 @@
  * THE SOFTWARE.
  */
 
-#include "py/runtime.h"
-#include "py/objarray.h"
-#include "extmod/modmachine.h"
+// Set base feature level.
+#define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_FULL_FEATURES)
 
-#if MICROPY_PY_MACHINE_MEMX
+// Enable extra Unix features.
+#include "../mpconfigvariant_common.h"
 
-const mp_obj_array_t machine_mem8_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'B', 0, SIZE_MAX + 1, (void *)0};
-const mp_obj_array_t machine_mem16_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'H', 0, SIZE_MAX / 2 + 1, (void *)0};
-const mp_obj_array_t machine_mem32_obj = {{&mp_type_memx}, MP_OBJ_ARRAY_TYPECODE_FLAG_RW | 'I', 0, SIZE_MAX / 4 + 1, (void *)0};
-
-#endif // MICROPY_PY_MACHINE_MEMX
+// non-root; only root can access /dev/mem
+#define MICROPY_PLAT_DEV_MEM  (0)

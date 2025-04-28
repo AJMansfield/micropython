@@ -184,7 +184,9 @@ static inline unsigned long mp_random_seed_init(void) {
 
 #ifdef __linux__
 // Can access physical memory using /dev/mem
+#ifndef MICROPY_PLAT_DEV_MEM
 #define MICROPY_PLAT_DEV_MEM  (1)
+#endif
 #endif
 
 #ifdef __ANDROID__
