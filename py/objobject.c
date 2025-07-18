@@ -96,8 +96,8 @@ static MP_DEFINE_CONST_FUN_OBJ_2(object___delattr___obj, object___delattr__);
 #endif
 
 #if MICROPY_PY_METACLASSES_LITE
-static mp_obj_t object___init_subclass__(mp_obj_t cls_in) {
-    (void)self;
+static mp_obj_t object___init_subclass__(mp_obj_t cls) {
+    (void)cls;
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(object___init_subclass___fun_obj, object___init_subclass__);
