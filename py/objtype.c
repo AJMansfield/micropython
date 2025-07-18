@@ -1265,23 +1265,30 @@ mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict) 
     #if MICROPY_PY_METACLASSES_LITE || ENABLE_SPECIAL_ACCESSORS
     // Check if the class has any special accessor methods,
     // and accumulate bound __set_name__ methods that need to be called
-    if (MICROPY_PY_METACLASSES_LITE || !(o->flags & MP_TYPE_FLAG_HAS_SPECIAL_ACCESSORS)) {
-        for (size_t i = 0; i < locals_ptr->map.alloc; i++) {
-            if (mp_map_slot_is_filled(&locals_ptr->map, i)) {
-                const mp_map_elem_t *elem = &locals_ptr->map.table[i];
-                if (check_for_special_accessors(elem->key, elem->value)) {
-                    o->flags |= MP_TYPE_FLAG_HAS_SPECIAL_ACCESSORS;
-                    #if !(MICROPY_PY_METACLASSES_LITE)
-                    break;
-                    #endif
-                }
-                #if MICROPY_PY_METACLASSES_LITE
-                setname_tail = setname_maybe_bind_append(setname_tail, elem->key, elem->value);
-                #endif
+    for (size_t i = 0; i < locals_ptr->map.alloc; i++) {
+        #if !MICROPY_PY_METACLASSES_LITE
+        // metaclasses-lite needs to scan the entire locals map, can't early-terminate
+        if (o->flags & MP_TYPE_FLAG_HAS_SPECIAL_ACCESSORS) {
+            break;
+        }
+        #endif
+
+        if (mp_map_slot_is_filled(&locals_ptr->map, i)) {
+            const mp_map_elem_t *elem = &locals_ptr->map.table[i];
+
+            #if ENABLE_SPECIAL_ACCESSORS
+            if (!(o->flags & MP_TYPE_FLAG_HAS_SPECIAL_ACCESSORS) // elidable when the early-termination check is enabled
+                && check_for_special_accessors(elem->key, elem->value)) {
+                o->flags |= MP_TYPE_FLAG_HAS_SPECIAL_ACCESSORS;
             }
+            #endif
+
+            #if MICROPY_PY_METACLASSES_LITE
+            setname_tail = setname_maybe_bind_append(setname_tail, elem->key, elem->value);
+            #endif
         }
     }
-    #endif
+    #endif // MICROPY_PY_METACLASSES_LITE || ENABLE_SPECIAL_ACCESSORS
 
     const mp_obj_type_t *native_base;
     size_t num_native_bases = instance_count_native_bases(o, &native_base);
