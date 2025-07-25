@@ -33,19 +33,26 @@ class SocketTransport(SerialTransport):
     def inWaiting(self) -> bool:
         if self.__buf:
             return True
-        self.__buf = self.sock.recv(1)
+        try:
+            self.__buf = self.sock.recv(1)
+        except BlockingIOError:
+            return False
         return bool(self.__buf)
     def read(self, bufsize: int) -> bytes:
         if bufsize == 0:
             return b''
         elif self.__buf:
-            b, self.__buf = self.__buf, None
-            if bufsize == 1:
-                return b
-            else:           
-                return b + self.sock.recv(bufsize-1)
+            b = self.__buf
+            if bufsize > 1:
+                b += self.sock.recv(bufsize-1)
+            self.__buf = None
+            return b 
         else:
             return self.sock.recv(bufsize)
     def write(self, buf: bytes) -> int:
         return self.sock.send(buf)
+    
+    @property
+    def fd(self):
+        return self.sock.fileno()
     
