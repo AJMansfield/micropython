@@ -567,6 +567,7 @@ function ci_unix_run_tests_mpremote_helper {
     sockdir=$(mktemp -d)
     mkfifo $sockdir/rx.fifo $sockdir/tx.fifo # rx/tx are from micropython's perspective
     nc -lkv 0 <$sockdir/tx.fifo >$sockdir/rx.fifo 2>$sockdir/ncerr & nc_pid=$! # reversed for mpremote's socket
+    sleep 0.1 # load-bearing sleep -- waiting for ncerr to exist
     cat $sockdir/ncerr
     port=$(<$sockdir/ncerr | head -n1 | cut -d' ' -f4)
 
