@@ -570,10 +570,11 @@ function ci_unix_run_tests_mpremote_helper {
     sleep 0.1 # load-bearing sleep -- waiting for ncerr to exist
     cat $sockdir/ncerr
     port=$(<$sockdir/ncerr | head -n1 | cut -d' ' -f4)
+    address="127.0.0.1:$port"
 
     $micropython <$sockdir/rx.fifo 2>&1 >$sockdir/tx.fifo & mpy_pid=$!
 
-    (cd $tests && MPREMOTE="$mpremote connect socket:127.0.0.1:$port" ./run-mpremote-tests.sh) ; rc=$?
+    (cd $tests && MPREMOTE="$mpremote connect socket:$address" ./run-mpremote-tests.sh) ; rc=$?
 
     kill $mpy_pid $nc_pid
     return $rc
