@@ -566,7 +566,7 @@ function ci_unix_run_tests_mpremote_helper {
 
     sockdir=$(mktemp -d)
     mkfifo $sockdir/rx.fifo $sockdir/tx.fifo # rx/tx are from micropython's perspective
-    nc -lU $sockdir/mpy.sock <$sockdir/tx.fifo >$sockdir/rx.fifo & nc_pid=$! # reversed for mpremote's socket
+    nc -lkU $sockdir/mpy.sock <$sockdir/tx.fifo >$sockdir/rx.fifo & nc_pid=$! # reversed for mpremote's socket
 
     $micropython <$sockdir/rx.fifo 2>&1 >$sockdir/tx.fifo & mpy_pid=$!
 
