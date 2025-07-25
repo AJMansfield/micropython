@@ -570,7 +570,7 @@ function ci_unix_run_tests_mpremote_helper {
 
     $micropython <$sockdir/rx.fifo 2>&1 >$sockdir/tx.fifo & mpy_pid=$!
 
-    (cd $tests && MPREMOTE="$mpremote connect port:$sockdir/mpy.sock" ./run-mpremote-tests.sh) ; rc=$?
+    (cd $tests && MPREMOTE="$mpremote connect socket:$sockdir/mpy.sock" ./run-mpremote-tests.sh) ; rc=$?
 
     kill $mpy_pid $nc_pid
     return $rc
