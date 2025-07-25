@@ -36,10 +36,14 @@ for test in "${TESTS[@]}"; do
     rm -r "${TMP}"
 done
 
+set +e
+
+rc=0
 for test in "${TESTS[@]}"; do
     result="${RESULT_DIR}/$(basename "${test}")"
     if [ -e "${result}.out" ]; then
         echo "FAILURE ${test}"
-        $DIFF "${result}.exp" "${result}.out"
+        $DIFF "${result}.exp" "${result}.out" || rc=$?
     fi
 done
+return $rc
