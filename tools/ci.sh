@@ -564,13 +564,17 @@ function ci_unix_run_tests_mpremote_helper {
     mpremote=../mpremote.py # relative to tests directory
     micropython=ports/unix/build-$variant/micropython # relative to root directory
 
+    nc -h
+
     sockdir=$(mktemp -d)
     mkfifo $sockdir/rx.fifo $sockdir/tx.fifo # rx/tx are from micropython's perspective
-    nc -lkv 0 <$sockdir/tx.fifo >$sockdir/rx.fifo 2>$sockdir/ncerr & nc_pid=$! # reversed for mpremote's socket
-    sleep 0.1 # load-bearing sleep -- waiting for ncerr to exist
-    cat $sockdir/ncerr
-    port=$(<$sockdir/ncerr | head -n1 | cut -d' ' -f4)
-    address="127.0.0.1:$port"
+    # nc -lkv 0 <$sockdir/tx.fifo >$sockdir/rx.fifo 2>$sockdir/ncerr & nc_pid=$! # reversed for mpremote's socket
+    # sleep 0.1 # load-bearing sleep -- waiting for ncerr to exist
+    # cat $sockdir/ncerr
+    # port=$(<$sockdir/ncerr | head -n1 | cut -d' ' -f4)
+    # address="127.0.0.1:$port"
+    nc -lkU $sockdir/mpy.sock <$sockdir/tx.fifo >$sockdir/rx.fifo & nc_pid=$! # reversed for mpremote's socket
+    address="$sockdir/mpy.sock"
 
     $micropython <$sockdir/rx.fifo 2>&1 >$sockdir/tx.fifo & mpy_pid=$!
 
