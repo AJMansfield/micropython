@@ -10,6 +10,7 @@ import serial.tools.list_ports
 
 from .transport import TransportError, TransportExecError, stdout_write_bytes
 from .transport_serial import SerialTransport
+from .transport_socket import SocketTransport
 from .romfs import make_romfs, VfsRomWriter
 
 
@@ -57,6 +58,10 @@ def do_connect(state, args=None):
                     state.transport = SerialTransport(p.device, baudrate=115200)
                     return
             raise TransportError("no device with serial number {}".format(serial_number))
+        elif dev.startswith("socket:"):
+            address = dev[len("socket:") :]
+            state.transport = SocketTransport(address)
+            return
         else:
             # Connect to the given device.
             if dev.startswith("port:"):
