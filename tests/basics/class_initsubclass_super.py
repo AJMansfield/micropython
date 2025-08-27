@@ -50,6 +50,7 @@ class Child12(Base1):
             print("Child12.__init_subclass__({}, **{!r})".format(cls.__name__, kwargs))
             super().__init_subclass__(**kwargs)
 
+
 class Base2:
     @classmethod
     def __init_subclass__(cls, **kwargs):
