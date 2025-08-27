@@ -44,7 +44,7 @@
 #define ENABLE_SPECIAL_ACCESSORS \
     (MICROPY_PY_DESCRIPTORS || MICROPY_PY_DELATTR_SETATTR || MICROPY_PY_BUILTINS_PROPERTY)
 
-static mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict);
+static mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict, mp_map_t *class_kwargs);
 static mp_obj_t mp_obj_is_subclass(mp_obj_t object, mp_obj_t classinfo);
 static mp_obj_t static_class_method_make_new(const mp_obj_type_t *self_in, size_t n_args, size_t n_kw, const mp_obj_t *args);
 
@@ -1035,6 +1035,12 @@ static void type_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_
 static mp_obj_t type_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)type_in;
 
+    if (n_args == 3 && n_kw > 0) {
+        mp_map_t kw_args;
+        mp_map_init_fixed_table(&kw_args, n_kw, args + n_args);
+        return mp_obj_new_type(mp_obj_str_get_qstr(args[0]), args[1], args[2], &kw_args);
+    }
+
     mp_arg_check_num(n_args, n_kw, 1, 3, false);
 
     switch (n_args) {
@@ -1045,7 +1051,7 @@ static mp_obj_t type_make_new(const mp_obj_type_t *type_in, size_t n_args, size_
             // args[0] = name
             // args[1] = bases tuple
             // args[2] = locals dict
-            return mp_obj_new_type(mp_obj_str_get_qstr(args[0]), args[1], args[2]);
+            return mp_obj_new_type(mp_obj_str_get_qstr(args[0]), args[1], args[2], NULL);
 
         default:
             mp_raise_TypeError(MP_ERROR_TEXT("type takes 1 or 3 arguments"));
@@ -1174,7 +1180,7 @@ MP_DEFINE_CONST_OBJ_TYPE(
     attr, type_attr
     );
 
-static mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict) {
+static mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict, mp_map_t *class_kwargs) {
     // Verify input objects have expected type
     if (!mp_obj_is_type(bases_tuple, &mp_type_tuple)) {
         mp_raise_TypeError(NULL);
@@ -1309,11 +1315,21 @@ static mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals
     setname_consume_call_all(&setname_list, MP_OBJ_FROM_PTR(o));
 
     if (bases_len >= 1) {
-        mp_obj_t init_subclass_method[2];
-        mp_load_method_maybe(bases_items[0], MP_QSTR___init_subclass__, init_subclass_method);
-        if (init_subclass_method[1] != MP_OBJ_NULL) {
-            init_subclass_method[1] = MP_OBJ_FROM_PTR(o);
-            mp_call_method_n_kw(0, 0, init_subclass_method);
+        if (class_kwargs == NULL) {
+            mp_obj_t init_subclass_method[2];
+            mp_load_method_maybe(bases_items[0], MP_QSTR___init_subclass__, init_subclass_method);
+            if (init_subclass_method[1] != MP_OBJ_NULL) {
+                init_subclass_method[1] = MP_OBJ_FROM_PTR(o);
+                mp_call_method_n_kw(0, 0, init_subclass_method);
+            }
+        } else {
+            mp_obj_t *init_subclass_method = m_new(mp_obj_t, class_kwargs->alloc * 2 + 2);
+            memmove(&init_subclass_method[2], class_kwargs->table, class_kwargs->alloc * sizeof(class_kwargs->table[0]));
+            mp_load_method_maybe(bases_items[0], MP_QSTR___init_subclass__, init_subclass_method);
+            if (init_subclass_method[1] != MP_OBJ_NULL) {
+                init_subclass_method[1] = MP_OBJ_FROM_PTR(o);
+                mp_call_method_n_kw(0, class_kwargs->alloc, init_subclass_method);
+            }
         }
     }
     #endif

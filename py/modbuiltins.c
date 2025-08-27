@@ -46,7 +46,8 @@ extern struct _mp_dummy_t mp_sys_stdout_obj; // type is irrelevant, just need po
 // args[0] is function from class body
 // args[1] is class name
 // args[2:] are base objects
-static mp_obj_t mp_builtin___build_class__(size_t n_args, const mp_obj_t *args) {
+// kw_args are `metaclass=` and arguments to call those bases' __init_subclass__
+static mp_obj_t mp_builtin___build_class__(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     assert(2 <= n_args);
 
     // set the new classes __locals__ object
@@ -60,9 +61,15 @@ static mp_obj_t mp_builtin___build_class__(size_t n_args, const mp_obj_t *args) 
     // restore old __locals__ object
     mp_locals_set(old_locals);
 
+    mp_map_elem_t *metaclass_arg = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_metaclass), MP_MAP_LOOKUP_REMOVE_IF_FOUND);
+
     // get the class type (meta object) from the base objects
     mp_obj_t meta;
-    if (n_args == 2) {
+    if (metaclass_arg != MP_OBJ_NULL) {
+        // explicit metaclass=<base>, use it
+        meta = metaclass_arg->value;
+        metaclass_arg->value = MP_OBJ_NULL;
+    } else if (n_args == 2) {
         // no explicit bases, so use 'type'
         meta = MP_OBJ_FROM_PTR(&mp_type_type);
     } else {
@@ -71,13 +78,28 @@ static mp_obj_t mp_builtin___build_class__(size_t n_args, const mp_obj_t *args) 
     }
 
     // TODO do proper metaclass resolution for multiple base objects
-
-    // create the new class using a call to the meta object
-    mp_obj_t meta_args[3];
-    meta_args[0] = args[1]; // class name
-    meta_args[1] = mp_obj_new_tuple(n_args - 2, args + 2); // tuple of bases
-    meta_args[2] = class_locals; // dict of members
-    mp_obj_t new_class = mp_call_function_n_kw(meta, 3, 0, meta_args);
+    mp_obj_t new_class;
+    if (kw_args->used == 0) {
+        // create the new class using a call to the meta object
+        mp_obj_t meta_args[3];
+        meta_args[0] = args[1]; // class name
+        meta_args[1] = mp_obj_new_tuple(n_args - 2, args + 2); // tuple of bases
+        meta_args[2] = class_locals; // dict of members
+        new_class = mp_call_function_n_kw(meta, 3, 0, meta_args);
+    } else {
+        mp_obj_t *meta_args = m_new(mp_obj_t, kw_args->used * 2 + 3);
+        meta_args[0] = args[1]; // class name
+        meta_args[1] = mp_obj_new_tuple(n_args - 2, args + 2); // tuple of bases
+        meta_args[2] = class_locals; // dict of members
+        for (size_t i = 0, j = 3; i < kw_args->alloc; i++) {
+            if (mp_map_slot_is_filled(kw_args, i)) {
+                const mp_map_elem_t *elem = &kw_args->table[i];
+                meta_args[j++] = elem->key;
+                meta_args[j++] = elem->value;
+            }
+        }
+        new_class = mp_call_function_n_kw(meta, 3, kw_args->used, meta_args);
+    }
 
     // store into cell if needed
     if (cell != mp_const_none) {
@@ -86,7 +108,7 @@ static mp_obj_t mp_builtin___build_class__(size_t n_args, const mp_obj_t *args) 
 
     return new_class;
 }
-MP_DEFINE_CONST_FUN_OBJ_VAR(mp_builtin___build_class___obj, 2, mp_builtin___build_class__);
+MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin___build_class___obj, 2, mp_builtin___build_class__);
 
 static mp_obj_t mp_builtin_abs(mp_obj_t o_in) {
     return mp_unary_op(MP_UNARY_OP_ABS, o_in);
