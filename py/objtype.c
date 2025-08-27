@@ -1017,6 +1017,15 @@ static inline void setname_consume_call_all(setname_list_t *head, mp_obj_t owner
 }
 #endif
 
+static inline void maybe_apply_method_decorator(mp_map_t *namespace, const mp_obj_t name, const mp_obj_type_t *type) {
+    mp_map_elem_t *elem = mp_map_lookup(namespace, name, MP_MAP_LOOKUP);
+    if (elem != NULL) {
+        if (mp_obj_is_fun(elem->value)) {
+            elem->value = static_class_method_make_new(type, 1, 0, &elem->value);
+        }
+    }
+}
+
 static void type_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)kind;
     mp_obj_type_t *self = MP_OBJ_TO_PTR(self_in);
@@ -1292,14 +1301,7 @@ static mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals
         mp_raise_TypeError(MP_ERROR_TEXT("multiple bases have instance lay-out conflict"));
     }
 
-    mp_map_elem_t *elem = mp_map_lookup(&locals_ptr->map, MP_OBJ_NEW_QSTR(MP_QSTR___new__), MP_MAP_LOOKUP);
-    if (elem != NULL) {
-        // __new__ slot exists; check if it is a function
-        if (mp_obj_is_fun(elem->value)) {
-            // __new__ is a function, wrap it in a staticmethod decorator
-            elem->value = static_class_method_make_new(&mp_type_staticmethod, 1, 0, &elem->value);
-        }
-    }
+    maybe_apply_method_decorator(&locals_ptr->map, MP_OBJ_NEW_QSTR(MP_QSTR___new__), &mp_type_staticmethod);
 
     #if MICROPY_PY_DESCRIPTORS
     setname_consume_call_all(&setname_list, MP_OBJ_FROM_PTR(o));
