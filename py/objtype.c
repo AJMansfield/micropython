@@ -1307,6 +1307,15 @@ static mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals
     maybe_apply_method_decorator(&locals_ptr->map, MP_OBJ_NEW_QSTR(MP_QSTR___init_subclass__), &mp_type_classmethod);
 
     setname_consume_call_all(&setname_list, MP_OBJ_FROM_PTR(o));
+
+    if (bases_len >= 1) {
+        mp_obj_t init_subclass_method[2];
+        mp_load_method_maybe(bases_items[0], MP_QSTR___init_subclass__, init_subclass_method);
+        if (init_subclass_method[1] != MP_OBJ_NULL) {
+            init_subclass_method[1] = MP_OBJ_FROM_PTR(o);
+            mp_call_method_n_kw(0, 0, init_subclass_method);
+        }
+    }
     #endif
 
     return MP_OBJ_FROM_PTR(o);
