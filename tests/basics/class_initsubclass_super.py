@@ -61,39 +61,21 @@ class Base2:
 suppress = False
 
 
-try:
-    class A(Base1):
-        pass
-except Exception as e:
-    print(e)
+class A(Base1):
+    pass
 
-try:
-    class B(Child11, Child12):
-        pass
-except Exception as e:
-    print(e)
+class B(Child11, Child12):
+    pass
 
-try:
-    class C(Child11, Base2, Child12):
-        pass
-except Exception as e:
-    print(e)
+class C(Child11, Base2, Child12):
+    pass
 
-try:
-    class D(Base1, NoSuper):
-        pass
-except Exception as e:
-    print(e)
+class D(Base1, NoSuper):
+    pass
 
-try:
-    class E(NoSuper, Base1):
-        pass
-except Exception as e:
-    print(e)
+class E(NoSuper, Base1):
+    pass
 
-try:
-    class F(NoSuper1):
-        pass
-except Exception as e:
-    print(e)
+class F(NoSuper1):
+    pass
 
