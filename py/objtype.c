@@ -1304,6 +1304,8 @@ static mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals
     maybe_apply_method_decorator(&locals_ptr->map, MP_OBJ_NEW_QSTR(MP_QSTR___new__), &mp_type_staticmethod);
 
     #if MICROPY_PY_DESCRIPTORS
+    maybe_apply_method_decorator(&locals_ptr->map, MP_OBJ_NEW_QSTR(MP_QSTR___init_subclass__), &mp_type_classmethod);
+
     setname_consume_call_all(&setname_list, MP_OBJ_FROM_PTR(o));
     #endif
 
