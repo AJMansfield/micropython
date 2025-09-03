@@ -205,7 +205,7 @@ mp_map_elem_t *MICROPY_WRAP_MP_MAP_LOOKUP(mp_map_lookup)(mp_map_t * map, mp_obj_
                     elem->value = value;
                 }
                 #endif
-                MAP_CACHE_SET(index, elem - map->table);
+                MAP_CACHE_SET(index, (elem - map->table) / sizeof(*elem));
                 return elem;
             }
         }
