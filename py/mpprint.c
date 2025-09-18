@@ -40,21 +40,6 @@
 #include "py/formatfloat.h"
 #endif
 
-static const char pad_spaces[16] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
-#define pad_spaces_size  (sizeof(pad_spaces))
-static const char pad_common[23] = {'0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '_', '0', '0', '0', ',', '0', '0'};
-// The contents of pad_common is arranged to provide the following padding
-// strings with minimal flash size:
-//     0000000000000000 <- pad_zeroes
-//                 0000_000 <- pad_zeroes_underscore (offset: 12, size 5)
-//                      000,00 <- pad_zeroes_comma (offset: 17, size 4)
-#define pad_zeroes       (pad_common + 0)
-#define pad_zeroes_size  (16)
-#define pad_zeroes_underscore (pad_common + 12)
-#define pad_zeroes_underscore_size  (5)
-#define pad_zeroes_comma (pad_common + 17)
-#define pad_zeroes_comma_size  (4)
-
 static void plat_print_strn(void *env, const char *str, size_t len) {
     (void)env;
     MP_PLAT_PRINT_STRN(str, len);
@@ -74,39 +59,6 @@ int mp_print_strn(const mp_print_t *print, const char *str, size_t len, unsigned
     int left_pad = 0;
     int right_pad = 0;
     int pad = width - len;
-    int pad_size;
-    int total_chars_printed = 0;
-    const char *pad_chars;
-    char grouping = flags >> PF_FLAG_SEP_POS;
-
-    if (!fill || fill == ' ') {
-        pad_chars = pad_spaces;
-        pad_size = pad_spaces_size;
-    } else if (fill == '0' && !grouping) {
-        pad_chars = pad_zeroes;
-        pad_size = pad_zeroes_size;
-    } else if (fill == '0') {
-        if (grouping == '_') {
-            pad_chars = pad_zeroes_underscore;
-            pad_size = pad_zeroes_underscore_size;
-        } else {
-            pad_chars = pad_zeroes_comma;
-            pad_size = pad_zeroes_comma_size;
-        }
-        // The result will never start with a grouping character. An extra leading zero is added.
-        // width is dead after this so we can use it in calculation
-        if (width % pad_size == 0) {
-            pad++;
-            width++;
-        }
-        // position the grouping character correctly within the pad repetition
-        pad_chars += pad_size - 1 - width % pad_size;
-    } else {
-        // Other pad characters are fairly unusual, so we'll take the hit
-        // and output them 1 at a time.
-        pad_chars = &fill;
-        pad_size = 1;
-    }
 
     if (flags & PF_FLAG_CENTER_ADJUST) {
         left_pad = pad / 2;
@@ -117,33 +69,16 @@ int mp_print_strn(const mp_print_t *print, const char *str, size_t len, unsigned
         left_pad = pad;
     }
 
-    if (left_pad > 0) {
-        total_chars_printed += left_pad;
-        while (left_pad > 0) {
-            int p = left_pad;
-            if (p > pad_size) {
-                p = pad_size;
-            }
-            print->print_strn(print->data, pad_chars, p);
-            left_pad -= p;
-        }
+    while (left_pad-- > 0) {
+        print->print_strn(print->data, &fill, 1);
     }
     if (len) {
         print->print_strn(print->data, str, len);
-        total_chars_printed += len;
     }
-    if (right_pad > 0) {
-        total_chars_printed += right_pad;
-        while (right_pad > 0) {
-            int p = right_pad;
-            if (p > pad_size) {
-                p = pad_size;
-            }
-            print->print_strn(print->data, pad_chars, p);
-            right_pad -= p;
-        }
+    while (right_pad-- > 0) {
+        print->print_strn(print->data, &fill, 1);
     }
-    return total_chars_printed;
+    return left_pad + len + right_pad;
 }
 
 // 32-bits is 10 digits, add 3 for commas, 1 for sign, 1 for terminating null
