@@ -55,20 +55,32 @@ int mp_print_str(const mp_print_t *print, const char *str) {
     return len;
 }
 
-#define PAD_BUF_MAX_SIZE (4300)
+// lcm(5,4) to match stride of both possible grouping increments
+#define PAD_BUF_LEN 20
+
+static void mp_print_cycle_buf(const mp_print_t *print, char *pad_buf, int n) {
+    while (n > PAD_BUF_LEN) {
+        print->print_strn(print->data, pad_buf, PAD_BUF_LEN);
+        n -= PAD_BUF_LEN;
+    }
+    if (n > 0) {
+        print->print_strn(print->data, pad_buf, n);
+    }
+}
 
 int mp_print_strn(const mp_print_t *print, const char *str, size_t len, unsigned int flags, char fill, int width) {
     int total_chars_printed = 0;
     char grouping = flags >> PF_FLAG_SEP_POS;
-
-    if (!fill) {
-        fill = ' ';
-    }
+    fill = fill ? fill : ' ';
 
     int pad = width - len;
+    char pad_buf[PAD_BUF_LEN];
+    if (pad > 0) {
+        memset(pad_buf, fill, sizeof(pad_buf));
+    }
+
     int left_pad;
     int right_pad;
-
     if (flags & PF_FLAG_CENTER_ADJUST) {
         left_pad = pad / 2;
         right_pad = pad - left_pad;
@@ -80,48 +92,36 @@ int mp_print_strn(const mp_print_t *print, const char *str, size_t len, unsigned
         right_pad = 0;
     }
 
-    char *pad_chars;
-
-    if (pad > PAD_BUF_MAX_SIZE) {
-        mp_raise_ValueError(MP_ERROR_TEXT("Exceeds the limit for integer string padding."));
-    } else if (pad > 0) {
-
+    if (left_pad > 0) {
         int increment = (grouping == '_' ? 5 : 4);
         if (grouping) {
             if (width % increment == 0) {
-                pad++;
+                width++;
                 left_pad++;
             }
-        }
-
-        pad_chars = alloca(pad);
-        memset(pad_chars, fill, pad);
-
-        if (grouping) {
-            // hypothetically, we're filling every nth position in `pad_chars[0 ... (left_pad + len)]`
-            // stopping at 1 on purpose; 0th position should never be a grouping character
-            // left_pad + len - increment - (n*increment) < left_pad
-            // len - (n+1)*increment < 0
-            // len < (n+1)*increment
-            int i_init = left_pad + (len % increment) - increment;
-            for (int i = i_init; i >= 1; i -= increment) {
-                pad_chars[i] = grouping;
+            for (int i = width % increment; i < sizeof(pad_buf); i += increment) {
+                pad_buf[i] = grouping;
             }
         }
-    } else {
-        pad_chars = alloca(0);
-    }
-
-    if (left_pad > 0) {
-        print->print_strn(print->data, pad_chars, left_pad);
+        mp_print_cycle_buf(print, pad_buf, left_pad);
         total_chars_printed += left_pad;
+        if (grouping && right_pad > 0) {
+            // the pad buffer will be needed later; set it back
+            /*
+            for (int i = width % increment; i < sizeof(pad_buf); i += increment) {
+                pad_buf[i] = fill;
+            }
+            */
+            // or, do we just...
+            memset(pad_buf, fill, sizeof(pad_buf));
+        }
     }
     if (len) {
         print->print_strn(print->data, str, len);
         total_chars_printed += len;
     }
     if (right_pad > 0) {
-        print->print_strn(print->data, &pad_chars[left_pad], right_pad);
+        mp_print_cycle_buf(print, pad_buf, right_pad);
         total_chars_printed += right_pad;
     }
     return total_chars_printed;
