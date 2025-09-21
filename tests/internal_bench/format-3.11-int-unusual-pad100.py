@@ -2,7 +2,7 @@ import bench
 
 
 def test(num):
-    f = "{:!100d}"
+    f = "{:!>100d}"
     for i in range(num // 10):
         s = f.format(i)
 

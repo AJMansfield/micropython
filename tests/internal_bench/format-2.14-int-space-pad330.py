@@ -2,7 +2,7 @@ import bench
 
 
 def test(num):
-    f = "{: 330d}"
+    f = "{: >330d}"
     for i in range(num // 10):
         s = f.format(i)
 

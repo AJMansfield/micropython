@@ -9,7 +9,7 @@ import bench
 
 
 def test(num):
-    f = "{: ${len}d}"
+    f = "{: >${len}d}"
     for i in range(num // 10):
         s = f.format(i)
 
@@ -21,7 +21,7 @@ import bench
 
 
 def test(num):
-    f = "{:!${len}d}"
+    f = "{:!>${len}d}"
     for i in range(num // 10):
         s = f.format(i)
 

@@ -2,7 +2,7 @@ import bench
 
 
 def test(num):
-    f = "{:!2d}"
+    f = "{:!>2d}"
     for i in range(num // 10):
         s = f.format(i)
 

@@ -2,7 +2,7 @@ import bench
 
 
 def test(num):
-    f = "{: 1d}"
+    f = "{: >1d}"
     for i in range(num // 10):
         s = f.format(i)
 
