@@ -610,6 +610,8 @@ static void gc_finalise_if_unmarked(const mp_state_mem_area_t *area, size_t bloc
         return;
     }
 
+    assert(obj->type->flags & MP_TYPE_FLAG_HAS_FINALISER);
+
     mp_obj_t dest[2];
     mp_load_method_maybe(MP_OBJ_FROM_PTR(obj), MP_QSTR___del__, dest);
 
