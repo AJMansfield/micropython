@@ -274,6 +274,24 @@ mp_uint_t mp_decode_uint(const byte **ptr);
 mp_uint_t mp_decode_uint_value(const byte *ptr);
 const byte *mp_decode_uint_skip(const byte *ptr);
 
+typedef struct _mp_opcode_t {
+    uint8_t opcode;
+    uint8_t format;
+    uint8_t size;
+    mp_int_t arg;
+    uint8_t extra_arg;
+} mp_opcode_t;
+
+mp_opcode_t mp_decode_opcode(const byte *ip);
+
+typedef struct _mp_code_lineinfo_t {
+    size_t bc_increment;
+    size_t line_increment;
+} mp_code_lineinfo_t;
+
+mp_code_lineinfo_t mp_bytecode_decode_lineinfo(const byte **line_info);
+size_t mp_bytecode_get_source_line(const byte *line_info, const byte *line_info_top, size_t bc_offset);
+
 mp_vm_return_kind_t mp_execute_bytecode(mp_code_state_t *code_state,
 #ifndef __cplusplus
     volatile
@@ -307,43 +325,6 @@ static inline void mp_module_context_alloc_tables(mp_module_context_t *context, 
         context->constants.obj_table = m_new(mp_obj_t, n_obj);
     }
     #endif
-}
-
-typedef struct _mp_code_lineinfo_t {
-    size_t bc_increment;
-    size_t line_increment;
-} mp_code_lineinfo_t;
-
-static inline mp_code_lineinfo_t mp_bytecode_decode_lineinfo(const byte **line_info) {
-    mp_code_lineinfo_t result;
-    size_t c = (*line_info)[0];
-    if ((c & 0x80) == 0) {
-        // 0b0LLBBBBB encoding
-        result.bc_increment = c & 0x1f;
-        result.line_increment = c >> 5;
-        *line_info += 1;
-    } else {
-        // 0b1LLLBBBB 0bLLLLLLLL encoding (l's LSB in second byte)
-        result.bc_increment = c & 0xf;
-        result.line_increment = ((c << 4) & 0x700) | (*line_info)[1];
-        *line_info += 2;
-    }
-    return result;
-}
-
-static inline size_t mp_bytecode_get_source_line(const byte *line_info, const byte *line_info_top, size_t bc_offset) {
-    size_t source_line = 1;
-    while (line_info < line_info_top) {
-        mp_code_lineinfo_t decoded = mp_bytecode_decode_lineinfo(&line_info);
-        if (bc_offset >= decoded.bc_increment) {
-            bc_offset -= decoded.bc_increment;
-            source_line += decoded.line_increment;
-        } else {
-            // found source line corresponding to bytecode offset
-            break;
-        }
-    }
-    return source_line;
 }
 
 #endif // MICROPY_INCLUDED_PY_BC_H

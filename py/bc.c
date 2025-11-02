@@ -88,6 +88,77 @@ const byte *mp_decode_uint_skip(const byte *ptr) {
     return ptr;
 }
 
+#define MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode) (MP_BC_UNWIND_JUMP <= (opcode) && (opcode) <= MP_BC_POP_JUMP_IF_FALSE)
+
+mp_opcode_t mp_decode_opcode(const byte *ip) {
+    const byte *ip_start = ip;
+    uint8_t opcode = *ip++;
+    uint8_t opcode_format = MP_BC_FORMAT(opcode);
+    mp_uint_t arg = 0;
+    uint8_t extra_arg = 0;
+    if (opcode_format == MP_BC_FORMAT_QSTR || opcode_format == MP_BC_FORMAT_VAR_UINT) {
+        arg = *ip & 0x7f;
+        if (opcode == MP_BC_LOAD_CONST_SMALL_INT && (arg & 0x40) != 0) {
+            arg |= (mp_uint_t)(-1) << 7;
+        }
+        while ((*ip & 0x80) != 0) {
+            arg = (arg << 7) | (*++ip & 0x7f);
+        }
+        ++ip;
+    } else if (opcode_format == MP_BC_FORMAT_OFFSET) {
+        if ((*ip & 0x80) == 0) {
+            arg = *ip++;
+            if (MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode)) {
+                arg -= 0x40;
+            }
+        } else {
+            arg = (ip[0] & 0x7f) | (ip[1] << 7);
+            ip += 2;
+            if (MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode)) {
+                arg -= 0x4000;
+            }
+        }
+    }
+    if ((opcode & MP_BC_MASK_EXTRA_BYTE) == 0) {
+        extra_arg = *ip++;
+    }
+
+    mp_opcode_t op = { opcode, opcode_format, ip - ip_start, arg, extra_arg };
+    return op;
+}
+
+mp_code_lineinfo_t mp_bytecode_decode_lineinfo(const byte **line_info) {
+    mp_code_lineinfo_t result;
+    size_t c = (*line_info)[0];
+    if ((c & 0x80) == 0) {
+        // 0b0LLBBBBB encoding
+        result.bc_increment = c & 0x1f;
+        result.line_increment = c >> 5;
+        *line_info += 1;
+    } else {
+        // 0b1LLLBBBB 0bLLLLLLLL encoding (l's LSB in second byte)
+        result.bc_increment = c & 0xf;
+        result.line_increment = ((c << 4) & 0x700) | (*line_info)[1];
+        *line_info += 2;
+    }
+    return result;
+}
+
+size_t mp_bytecode_get_source_line(const byte *line_info, const byte *line_info_top, size_t bc_offset) {
+    size_t source_line = 1;
+    while (line_info < line_info_top) {
+        mp_code_lineinfo_t decoded = mp_bytecode_decode_lineinfo(&line_info);
+        if (bc_offset >= decoded.bc_increment) {
+            bc_offset -= decoded.bc_increment;
+            source_line += decoded.line_increment;
+        } else {
+            // found source line corresponding to bytecode offset
+            break;
+        }
+    }
+    return source_line;
+}
+
 static MP_NORETURN void fun_pos_args_mismatch(mp_obj_fun_bc_t *f, size_t expected, size_t given) {
     #if MICROPY_ERROR_REPORTING <= MICROPY_ERROR_REPORTING_TERSE
     // generic message, used also for other argument issues

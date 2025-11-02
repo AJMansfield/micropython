@@ -33,6 +33,7 @@
 #include "py/nativeglue.h"
 #include "py/persistentcode.h"
 #include "py/bc0.h"
+#include "py/bc.h"
 #include "py/objstr.h"
 #include "py/mpthread.h"
 
@@ -764,8 +765,6 @@ void mp_raw_code_save_file(mp_compiled_module_t *cm, qstr filename) {
 #include "py/smallint.h"
 #include "py/gc.h"
 
-#define MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode) (MP_BC_UNWIND_JUMP <= (opcode) && (opcode) <= MP_BC_POP_JUMP_IF_FALSE)
-
 typedef struct _bit_vector_t {
     size_t max_bit_set;
     size_t alloc;
@@ -799,51 +798,6 @@ static void bit_vector_set(bit_vector_t *self, size_t index) {
     self->bits[index / bits_size] |= (uintptr_t)1 << (index % bits_size);
 }
 
-typedef struct _mp_opcode_t {
-    uint8_t opcode;
-    uint8_t format;
-    uint8_t size;
-    mp_int_t arg;
-    uint8_t extra_arg;
-} mp_opcode_t;
-
-static mp_opcode_t mp_opcode_decode(const uint8_t *ip) {
-    const uint8_t *ip_start = ip;
-    uint8_t opcode = *ip++;
-    uint8_t opcode_format = MP_BC_FORMAT(opcode);
-    mp_uint_t arg = 0;
-    uint8_t extra_arg = 0;
-    if (opcode_format == MP_BC_FORMAT_QSTR || opcode_format == MP_BC_FORMAT_VAR_UINT) {
-        arg = *ip & 0x7f;
-        if (opcode == MP_BC_LOAD_CONST_SMALL_INT && (arg & 0x40) != 0) {
-            arg |= (mp_uint_t)(-1) << 7;
-        }
-        while ((*ip & 0x80) != 0) {
-            arg = (arg << 7) | (*++ip & 0x7f);
-        }
-        ++ip;
-    } else if (opcode_format == MP_BC_FORMAT_OFFSET) {
-        if ((*ip & 0x80) == 0) {
-            arg = *ip++;
-            if (MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode)) {
-                arg -= 0x40;
-            }
-        } else {
-            arg = (ip[0] & 0x7f) | (ip[1] << 7);
-            ip += 2;
-            if (MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode)) {
-                arg -= 0x4000;
-            }
-        }
-    }
-    if ((opcode & MP_BC_MASK_EXTRA_BYTE) == 0) {
-        extra_arg = *ip++;
-    }
-
-    mp_opcode_t op = { opcode, opcode_format, ip - ip_start, arg, extra_arg };
-    return op;
-}
-
 mp_obj_t mp_raw_code_save_fun_to_bytes(const mp_module_constants_t *consts, const uint8_t *bytecode) {
     const uint8_t *fun_data = bytecode;
     const uint8_t *fun_data_top = fun_data + gc_nbytes(fun_data);
@@ -875,7 +829,7 @@ mp_obj_t mp_raw_code_save_fun_to_bytes(const mp_module_constants_t *consts, cons
 
     // Decode bytecode.
     while (ip < fun_data_top) {
-        mp_opcode_t op = mp_opcode_decode(ip);
+        mp_opcode_t op = mp_decode_opcode(ip);
         if (op.opcode == MP_BC_BASE_RESERVED) {
             // End of opcodes.
             fun_data_top = ip;
