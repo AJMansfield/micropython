@@ -1,0 +1,19 @@
+{
+    "deploy": [
+        "deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "mpy-cross",
+        "mpy-tool",
+        "predictable-download-path"
+    ],
+    "images": [
+        "logo.svg"
+    ],
+    "mcu": "x64",
+    "product": "Compiler Explorer",
+    "thumbnail": "icon.png",
+    "url": "https://python.compiler-explorer.com/",
+    "vendor": "Compiler Explorer"
+}
