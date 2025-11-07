@@ -39,6 +39,10 @@ VALID_FEATURES = {
     "PoE",
     "RGB LED",
     "Secure Element",
+    # Tooling Flags
+    "mpy-cross",
+    "mpy-tool",
+    "predictable-download-path",
 }
 
 
@@ -46,7 +50,15 @@ def main(repo_path, output_path):
     boards_index = []
     board_ids = set()
 
-    for board_json in glob.glob(os.path.join(repo_path, "ports/*/boards/*/board.json")):
+    glob_board_json = sum(
+        (
+            glob.glob(os.path.join(repo_path, "ports/*/boards/*/board.json")),
+            glob.glob(os.path.join(repo_path, "ports/*/variants/*/variant.json")),
+        ),
+        start=[],
+    )
+
+    for board_json in glob_board_json:
         # Relative path to the board directory (e.g. "ports/stm32/boards/PYBV11").
         board_dir = os.path.dirname(board_json)
         # Relative path to the port (e.g. "ports/stm32")

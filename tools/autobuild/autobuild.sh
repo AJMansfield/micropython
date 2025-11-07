@@ -92,6 +92,8 @@ cd ../samd
 build_samd_boards ${FW_TAG} ${LOCAL_FIRMWARE}
 cd ../stm32
 build_stm32_boards ${FW_TAG} ${LOCAL_FIRMWARE}
+cd ../unix
+build_unix_variants ${FW_TAG} ${LOCAL_FIRMWARE}
 
 popd
 
