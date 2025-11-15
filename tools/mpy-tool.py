@@ -40,6 +40,56 @@ def hexlify_to_str(b):
     return str(hexlify(b, ":"), "ascii")
 
 
+class PrintOutputter:
+    """Strip off `annotations` and `labels`, and just out."""
+
+    def __call__(self, *a, annotations: dict = {}, labels: "list[str]" = (), **k):
+        return print(*a, **k)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+
+class JsonOutputter:
+    """Output asm or freeze lines as godbolt-compatible JSON, with extra annotation info."""
+
+    def __init__(self, fp=sys.stdout, languageId="mpy"):
+        self.fp = fp
+        self.asm = {
+            "asm": [],
+            "labelDefinitions": {},
+            "languageId": languageId,
+        }
+        self.line_number: int = 0
+        self.buf: "io.StringIO | None" = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        import json
+
+        json.dump(self.asm, self.fp)
+
+    def __call__(self, *a, annotations: dict = {}, labels: "list[str]" = (), **k):
+        buf = io.StringIO()
+        print(*a, file=buf, end="", **k)
+
+        asm_line = {"text": buf.getvalue()}
+        asm_line.update(annotations)
+        self.asm["asm"].append(asm_line)
+
+        self.line_number += 1
+        for label in labels:
+            self.asm["labelDefinitions"][label] = self.line_number
+
+
+default_printer = PrintOutputter()
+
+
 sys.path.append(sys.path[0] + "/../py")
 import makeqstrdata as qstrutil
 
@@ -602,7 +652,7 @@ class CompiledModule:
         self.raw_code_file_offset = raw_code_file_offset
         self.escaped_name = escaped_name
 
-    def hexdump(self):
+    def hexdump(self, *, out):
         with open(self.mpy_source_file, "rb") as f:
             WIDTH = 16
             COL_OFF = "\033[0m"
@@ -664,60 +714,60 @@ class CompiledModule:
                     line_hex += COL_OFF
                     line_chr += COL_OFF
                 pad = " " * ((WIDTH - len(data)) * 5 // 2)
-                print("%08x:%s%s  %s %s" % (offset, line_hex, pad, line_chr, line_comment))
+                out("%08x:%s%s  %s %s" % (offset, line_hex, pad, line_chr, line_comment))
                 offset += WIDTH
 
-    def disassemble(self):
-        print("mpy_source_file:", self.mpy_source_file)
-        print("source_file:", self.source_file.str)
-        print("header:", hexlify_to_str(self.header))
+    def disassemble(self, *, out):
+        out("mpy_source_file:", self.mpy_source_file)
+        out("source_file:", self.source_file.str)
+        out("header:", hexlify_to_str(self.header))
         arch_index = (self.header[2] >> 2) & 0x2F
         if arch_index >= len(MP_NATIVE_ARCH_NAMES):
             arch_name = "UNKNOWN"
         else:
             arch_name = MP_NATIVE_ARCH_NAMES[arch_index]
-        print("arch:", arch_name)
+        out("arch:", arch_name)
         if self.header[2] & MP_NATIVE_ARCH_FLAGS_PRESENT != 0:
-            print("arch_flags:", hex(self.arch_flags))
-        print("qstr_table[%u]:" % len(self.qstr_table))
+            out("arch_flags:", hex(self.arch_flags))
+        out("qstr_table[%u]:" % len(self.qstr_table))
         for q in self.qstr_table:
-            print("    %s" % q.str)
-        print("obj_table:", self.obj_table)
-        self.raw_code.disassemble()
+            out("    %s" % q.str)
+        out("obj_table:", self.obj_table)
+        self.raw_code.disassemble(out=out)
 
-    def freeze(self, compiled_module_index):
-        print()
-        print("/" * 80)
-        print("// frozen module %s" % self.escaped_name)
-        print("// - original source file: %s" % self.mpy_source_file)
-        print("// - frozen file name: %s" % self.source_file.str)
-        print("// - .mpy header: %s" % ":".join("%02x" % b for b in self.header))
-        print()
+    def freeze(self, compiled_module_index, *, out):
+        out()
+        out("/" * 80)
+        out("// frozen module %s" % self.escaped_name)
+        out("// - original source file: %s" % self.mpy_source_file)
+        out("// - frozen file name: %s" % self.source_file.str)
+        out("// - .mpy header: %s" % ":".join("%02x" % b for b in self.header))
+        out()
 
-        self.raw_code.freeze()
-        print()
+        self.raw_code.freeze(out=out)
+        out()
 
-        self.freeze_constants()
+        self.freeze_constants(out=out)
 
-        print()
-        print("static const mp_frozen_module_t frozen_module_%s = {" % self.escaped_name)
-        print("    .constants = {")
+        out()
+        out("static const mp_frozen_module_t frozen_module_%s = {" % self.escaped_name)
+        out("    .constants = {")
         if len(self.qstr_table):
-            print(
+            out(
                 "        .qstr_table = (qstr_short_t *)&const_qstr_table_data_%s,"
                 % self.escaped_name
             )
         else:
-            print("        .qstr_table = NULL,")
+            out("        .qstr_table = NULL,")
         if len(self.obj_table):
-            print("        .obj_table = (mp_obj_t *)&const_obj_table_data_%s," % self.escaped_name)
+            out("        .obj_table = (mp_obj_t *)&const_obj_table_data_%s," % self.escaped_name)
         else:
-            print("        .obj_table = NULL,")
-        print("    },")
-        print("    .proto_fun = &proto_fun_%s," % self.raw_code.escaped_name)
-        print("};")
+            out("        .obj_table = NULL,")
+        out("    },")
+        out("    .proto_fun = &proto_fun_%s," % self.raw_code.escaped_name)
+        out("};")
 
-    def freeze_constant_obj(self, obj_name, obj):
+    def freeze_constant_obj(self, obj_name, obj, *, out):
         global const_str_content, const_int_content, const_obj_content
 
         if isinstance(obj, MPFunTable):
@@ -744,7 +794,7 @@ class CompiledModule:
                 obj_type = "mp_type_str"
             else:
                 obj_type = "mp_type_bytes"
-            print(
+            out(
                 'static const mp_obj_str_t %s = {{&%s}, %u, %u, (const byte*)"%s"};'
                 % (
                     obj_name,
@@ -764,7 +814,7 @@ class CompiledModule:
             elif config.MICROPY_LONGINT_IMPL == config.MICROPY_LONGINT_IMPL_NONE:
                 raise FreezeError(self, "target does not support long int")
             elif config.MICROPY_LONGINT_IMPL == config.MICROPY_LONGINT_IMPL_LONGLONG:
-                print("static const mp_obj_int_t %s = {{&mp_type_int}, %d};" % (obj_name, obj))
+                out("static const mp_obj_int_t %s = {{&mp_type_int}, %d};" % (obj_name, obj))
                 return "MP_ROM_PTR(&%s)" % obj_name
             elif config.MICROPY_LONGINT_IMPL == config.MICROPY_LONGINT_IMPL_MPZ:
                 neg = 0
@@ -779,7 +829,7 @@ class CompiledModule:
                     z >>= bits_per_dig
                 ndigs = len(digs)
                 digs = ",".join(("%#x" % d) for d in digs)
-                print(
+                out(
                     "static const mp_obj_int_t %s = {{&mp_type_int}, "
                     "{.neg=%u, .fixed_dig=1, .alloc=%u, .len=%u, .dig=(uint%u_t*)(const uint%u_t[]){%s}}};"
                     % (obj_name, neg, ndigs, ndigs, bits_per_dig, bits_per_dig, digs)
@@ -789,27 +839,27 @@ class CompiledModule:
                 return "MP_ROM_PTR(&%s)" % obj_name
         elif isinstance(obj, float):
             macro_name = "%s_macro" % obj_name
-            print(
+            out(
                 "#if MICROPY_OBJ_REPR == MICROPY_OBJ_REPR_A || MICROPY_OBJ_REPR == MICROPY_OBJ_REPR_B"
             )
-            print(
+            out(
                 "static const mp_obj_float_t %s = {{&mp_type_float}, (mp_float_t)%.16g};"
                 % (obj_name, obj)
             )
-            print("#define %s MP_ROM_PTR(&%s)" % (macro_name, obj_name))
-            print("#elif MICROPY_OBJ_REPR == MICROPY_OBJ_REPR_C")
+            out("#define %s MP_ROM_PTR(&%s)" % (macro_name, obj_name))
+            out("#elif MICROPY_OBJ_REPR == MICROPY_OBJ_REPR_C")
             n = struct.unpack("<I", struct.pack("<f", obj))[0]
             n = ((n & ~0x3) | 2) + 0x80800000
-            print("#define %s ((mp_rom_obj_t)(0x%08x))" % (macro_name, n))
-            print("#elif MICROPY_OBJ_REPR == MICROPY_OBJ_REPR_D")
+            out("#define %s ((mp_rom_obj_t)(0x%08x))" % (macro_name, n))
+            out("#elif MICROPY_OBJ_REPR == MICROPY_OBJ_REPR_D")
             n = struct.unpack("<Q", struct.pack("<d", obj))[0]
             n += 0x8004000000000000
-            print("#define %s ((mp_rom_obj_t)(0x%016x))" % (macro_name, n))
-            print("#endif")
+            out("#define %s ((mp_rom_obj_t)(0x%016x))" % (macro_name, n))
+            out("#endif")
             const_obj_content += 3 * 4
             return macro_name
         elif isinstance(obj, complex):
-            print(
+            out(
                 "static const mp_obj_complex_t %s = {{&mp_type_complex}, (mp_float_t)%.16g, (mp_float_t)%.16g};"
                 % (obj_name, obj.real, obj.imag)
             )
@@ -822,48 +872,48 @@ class CompiledModule:
                 for i, sub_obj in enumerate(obj):
                     sub_obj_name = "%s_%u" % (obj_name, i)
                     obj_refs.append(self.freeze_constant_obj(sub_obj_name, sub_obj))
-                print(
+                out(
                     "static const mp_rom_obj_tuple_t %s = {{&mp_type_tuple}, %d, {"
                     % (obj_name, len(obj))
                 )
                 for ref in obj_refs:
-                    print("    %s," % ref)
-                print("}};")
+                    out("    %s," % ref)
+                out("}};")
                 return "MP_ROM_PTR(&%s)" % obj_name
         else:
             raise FreezeError(self, "freezing of object %r is not implemented" % (obj,))
 
-    def freeze_constants(self):
+    def freeze_constants(self, *, out):
         if len(self.qstr_table):
-            print(
+            out(
                 "static const qstr_short_t const_qstr_table_data_%s[%u] = {"
                 % (self.escaped_name, len(self.qstr_table))
             )
             for q in self.qstr_table:
-                print("    %s," % q.qstr_id)
-            print("};")
+                out("    %s," % q.qstr_id)
+            out("};")
 
         if not len(self.obj_table):
             return
 
         # generate constant objects
-        print()
-        print("// constants")
+        out()
+        out("// constants")
         obj_refs = []
         for i, obj in enumerate(self.obj_table):
             obj_name = "const_obj_%s_%u" % (self.escaped_name, i)
             obj_refs.append(self.freeze_constant_obj(obj_name, obj))
 
         # generate constant table
-        print()
-        print("// constant table")
-        print(
+        out()
+        out("// constant table")
+        out(
             "static const mp_rom_obj_t const_obj_table_data_%s[%u] = {"
             % (self.escaped_name, len(self.obj_table))
         )
         for ref in obj_refs:
-            print("    %s," % ref)
-        print("};")
+            out("    %s," % ref)
+        out("};")
 
         global const_table_ptr_content
         const_table_ptr_content += len(self.obj_table)
@@ -915,27 +965,27 @@ class RawCode(object):
         self.escaped_names.add(unique_escaped_name)
         self.escaped_name = unique_escaped_name
 
-    def disassemble_children(self):
-        self.print_children_annotated()
+    def disassemble_children(self, *, out):
+        self.print_children_annotated(out=out)
         for rc in self.children:
-            rc.disassemble()
+            rc.disassemble(out=out)
 
-    def freeze_children(self, prelude_ptr=None):
+    def freeze_children(self, prelude_ptr=None, *, out):
         # Freeze children and generate table of children.
         if len(self.children):
             for rc in self.children:
-                print("// child of %s" % self.escaped_name)
-                rc.freeze()
-                print()
-            print("static const mp_raw_code_t *const children_%s[] = {" % self.escaped_name)
+                out("// child of %s" % self.escaped_name)
+                rc.freeze(out=out)
+                out()
+            out("static const mp_raw_code_t *const children_%s[] = {" % self.escaped_name)
             for rc in self.children:
-                print("    (const mp_raw_code_t *)&proto_fun_%s," % rc.escaped_name)
+                out("    (const mp_raw_code_t *)&proto_fun_%s," % rc.escaped_name)
             if prelude_ptr:
-                print("    (void *)%s," % prelude_ptr)
-            print("};")
-            print()
+                out("    (void *)%s," % prelude_ptr)
+            out("};")
+            out()
 
-    def freeze_raw_code(self, prelude_ptr=None, type_sig=0):
+    def freeze_raw_code(self, prelude_ptr=None, type_sig=0, *, out):
         # Generate mp_raw_code_t.
         if self.code_kind == MP_CODE_NATIVE_ASM:
             raw_code_type = "mp_raw_code_t"
@@ -946,60 +996,58 @@ class RawCode(object):
         generate_minimal = self.code_kind == MP_CODE_BYTECODE and empty_children
 
         if generate_minimal:
-            print("#if MICROPY_PERSISTENT_CODE_SAVE")
+            out("#if MICROPY_PERSISTENT_CODE_SAVE")
 
-        print("static const %s proto_fun_%s = {" % (raw_code_type, self.escaped_name))
-        print("    .proto_fun_indicator[0] = MP_PROTO_FUN_INDICATOR_RAW_CODE_0,")
-        print("    .proto_fun_indicator[1] = MP_PROTO_FUN_INDICATOR_RAW_CODE_1,")
-        print("    .kind = %s," % RawCode.code_kind_str[self.code_kind])
-        print("    .is_generator = %d," % bool(self.scope_flags & MP_SCOPE_FLAG_GENERATOR))
-        print("    .fun_data = fun_data_%s," % self.escaped_name)
+        out("static const %s proto_fun_%s = {" % (raw_code_type, self.escaped_name))
+        out("    .proto_fun_indicator[0] = MP_PROTO_FUN_INDICATOR_RAW_CODE_0,")
+        out("    .proto_fun_indicator[1] = MP_PROTO_FUN_INDICATOR_RAW_CODE_1,")
+        out("    .kind = %s," % RawCode.code_kind_str[self.code_kind])
+        out("    .is_generator = %d," % bool(self.scope_flags & MP_SCOPE_FLAG_GENERATOR))
+        out("    .fun_data = fun_data_%s," % self.escaped_name)
         if len(self.children):
-            print("    .children = (void *)&children_%s," % self.escaped_name)
+            out("    .children = (void *)&children_%s," % self.escaped_name)
         elif prelude_ptr:
-            print("    .children = (void *)%s," % prelude_ptr)
+            out("    .children = (void *)%s," % prelude_ptr)
         else:
-            print("    .children = NULL,")
-        print("    #if MICROPY_PERSISTENT_CODE_SAVE")
-        print("    .fun_data_len = %u," % len(self.fun_data))
-        print("    .n_children = %u," % len(self.children))
-        print("    #if MICROPY_EMIT_MACHINE_CODE")
-        print("    .prelude_offset = %u," % self.prelude_offset)
-        print("    #endif")
+            out("    .children = NULL,")
+        out("    #if MICROPY_PERSISTENT_CODE_SAVE")
+        out("    .fun_data_len = %u," % len(self.fun_data))
+        out("    .n_children = %u," % len(self.children))
+        out("    #if MICROPY_EMIT_MACHINE_CODE")
+        out("    .prelude_offset = %u," % self.prelude_offset)
+        out("    #endif")
         if self.code_kind == MP_CODE_BYTECODE:
-            print("    #if MICROPY_PY_SYS_SETTRACE")
-            print("    .line_of_definition = %u," % 0)  # TODO
-            print("    .prelude = {")
-            print("        .n_state = %u," % self.prelude_signature[0])
-            print("        .n_exc_stack = %u," % self.prelude_signature[1])
-            print("        .scope_flags = %u," % self.prelude_signature[2])
-            print("        .n_pos_args = %u," % self.prelude_signature[3])
-            print("        .n_kwonly_args = %u," % self.prelude_signature[4])
-            print("        .n_def_pos_args = %u," % self.prelude_signature[5])
-            print("        .qstr_block_name_idx = %u," % self.names[0])
-            print(
+            out("    #if MICROPY_PY_SYS_SETTRACE")
+            out("    .line_of_definition = %u," % 0)  # TODO
+            out("    .prelude = {")
+            out("        .n_state = %u," % self.prelude_signature[0])
+            out("        .n_exc_stack = %u," % self.prelude_signature[1])
+            out("        .scope_flags = %u," % self.prelude_signature[2])
+            out("        .n_pos_args = %u," % self.prelude_signature[3])
+            out("        .n_kwonly_args = %u," % self.prelude_signature[4])
+            out("        .n_def_pos_args = %u," % self.prelude_signature[5])
+            out("        .qstr_block_name_idx = %u," % self.names[0])
+            out(
                 "        .line_info = fun_data_%s + %u,"
                 % (self.escaped_name, self.offset_line_info)
             )
-            print(
+            out(
                 "        .line_info_top = fun_data_%s + %u,"
                 % (self.escaped_name, self.offset_closure_info)
             )
-            print(
-                "        .opcodes = fun_data_%s + %u," % (self.escaped_name, self.offset_opcodes)
-            )
-            print("    },")
-            print("    #endif")
-        print("    #endif")
+            out("        .opcodes = fun_data_%s + %u," % (self.escaped_name, self.offset_opcodes))
+            out("    },")
+            out("    #endif")
+        out("    #endif")
         if self.code_kind == MP_CODE_NATIVE_ASM:
-            print("    .asm_n_pos_args = %u," % self.n_pos_args)
-            print("    .asm_type_sig = %u," % type_sig)
-        print("};")
+            out("    .asm_n_pos_args = %u," % self.n_pos_args)
+            out("    .asm_type_sig = %u," % type_sig)
+        out("};")
 
         if generate_minimal:
-            print("#else")
-            print("#define proto_fun_%s fun_data_%s[0]" % (self.escaped_name, self.escaped_name))
-            print("#endif")
+            out("#else")
+            out("#define proto_fun_%s fun_data_%s[0]" % (self.escaped_name, self.escaped_name))
+            out("#endif")
 
         global raw_code_count, raw_code_content
         raw_code_count += 1
@@ -1042,9 +1090,9 @@ class RawCode(object):
         else:
             return "%s" % self.escaped_name
 
-    def print_children_annotated(self) -> None:
+    def print_children_annotated(self, *, out) -> None:
         """
-        Equivalent to `print("  children:", [child.simple_name.str for child in self.children])`,
+        Equivalent to `out("  children:", [child.simple_name.str for child in self.children])`,
         but also includes json markers for the start and end of each one's name in that line.
         """
 
@@ -1072,7 +1120,7 @@ class RawCode(object):
             )
         output.write("]")
 
-        print(output.getvalue(), annotations={"labels": annotation_labels}, labels=labels)
+        out(output.getvalue(), annotations={"labels": annotation_labels}, labels=labels)
 
 
 class RawCodeBytecode(RawCode):
@@ -1131,13 +1179,13 @@ class RawCodeBytecode(RawCode):
 
         return annotations, labels
 
-    def disassemble(self):
+    def disassemble(self, *, out):
         bc = self.fun_data
-        print("simple_name:", self.simple_name.str, labels=[self.get_label()])
-        print("  raw bytecode:", len(bc), hexlify_to_str(bc))
-        print("  prelude:", self.prelude_signature)
-        print("  args:", [self.qstr_table[i].str for i in self.names[1:]])
-        print("  line info:", hexlify_to_str(bc[self.offset_line_info : self.offset_opcodes]))
+        out("simple_name:", self.simple_name.str, labels=[self.get_label()])
+        out("  raw bytecode:", len(bc), hexlify_to_str(bc))
+        out("  prelude:", self.prelude_signature)
+        out("  args:", [self.qstr_table[i].str for i in self.names[1:]])
+        out("  line info:", hexlify_to_str(bc[self.offset_line_info : self.offset_opcodes]))
         ip = self.offset_opcodes
         while ip < len(bc):
             fmt, sz, arg, _ = mp_opcode_decode(bc, ip)
@@ -1164,33 +1212,33 @@ class RawCodeBytecode(RawCode):
                 arg_len=len(arg_part),
             )
 
-            print(pre_arg_part, arg_part, annotations=annotations, labels=labels)
+            out(pre_arg_part, arg_part, annotations=annotations, labels=labels)
             ip += sz
-        self.disassemble_children()
+        self.disassemble_children(out=out)
 
-    def freeze(self):
+    def freeze(self, *, out):
         # generate bytecode data
         bc = self.fun_data
-        print(
+        out(
             "// frozen bytecode for file %s, scope %s"
             % (self.qstr_table[0].str, self.escaped_name)
         )
-        print("static const byte fun_data_%s[%u] = {" % (self.escaped_name, len(bc)))
+        out("static const byte fun_data_%s[%u] = {" % (self.escaped_name, len(bc)))
 
-        print("    ", end="")
+        out("    ", end="")
         for b in bc[: self.offset_source_info]:
-            print("0x%02x," % b, end="")
-        print(" // prelude")
+            out("0x%02x," % b, end="")
+        out(" // prelude")
 
-        print("    ", end="")
+        out("    ", end="")
         for b in bc[self.offset_source_info : self.offset_line_info]:
-            print("0x%02x," % b, end="")
-        print(" // names: %s" % ", ".join(self.qstr_table[i].str for i in self.names))
+            out("0x%02x," % b, end="")
+        out(" // names: %s" % ", ".join(self.qstr_table[i].str for i in self.names))
 
-        print("    ", end="")
+        out("    ", end="")
         for b in bc[self.offset_line_info : self.offset_opcodes]:
-            print("0x%02x," % b, end="")
-        print(" // code info")
+            out("0x%02x," % b, end="")
+        out(" // code info")
 
         ip = self.offset_opcodes
         while ip < len(bc):
@@ -1200,15 +1248,13 @@ class RawCodeBytecode(RawCode):
                 opcode_name += " " + repr(self.qstr_table[arg].str)
             elif fmt in (MP_BC_FORMAT_VAR_UINT, MP_BC_FORMAT_OFFSET):
                 opcode_name += " %u" % arg
-            print(
-                "    %s, // %s" % (",".join("0x%02x" % b for b in bc[ip : ip + sz]), opcode_name)
-            )
+            out("    %s, // %s" % (",".join("0x%02x" % b for b in bc[ip : ip + sz]), opcode_name))
             ip += sz
 
-        print("};")
+        out("};")
 
-        self.freeze_children()
-        self.freeze_raw_code()
+        self.freeze_children(out=out)
+        self.freeze_raw_code(out=out)
 
         global bc_content
         bc_content += len(bc)
@@ -1263,10 +1309,10 @@ class RawCodeNative(RawCode):
             # ARMVxxM or RV{32,64}IMC -- two byte align.
             self.fun_data_attributes += " __attribute__ ((aligned (2)))"
 
-    def disassemble(self):
+    def disassemble(self, *, out):
         fun_data = self.fun_data
-        print("simple_name:", self.simple_name.str, labels=[self.get_label()])
-        print(
+        out("simple_name:", self.simple_name.str, labels=[self.get_label()])
+        out(
             "  raw data:",
             len(fun_data),
             hexlify_to_str(fun_data[:32]),
@@ -1274,27 +1320,27 @@ class RawCodeNative(RawCode):
         )
         if self.code_kind != MP_CODE_NATIVE_PY:
             return
-        print("  prelude:", self.prelude_signature)
-        print("  args:", [self.qstr_table[i].str for i in self.names[1:]])
-        print("  line info:", fun_data[self.offset_line_info : self.offset_opcodes])
+        out("  prelude:", self.prelude_signature)
+        out("  args:", [self.qstr_table[i].str for i in self.names[1:]])
+        out("  line info:", fun_data[self.offset_line_info : self.offset_opcodes])
         ip = 0
         while ip < self.prelude_offset:
             sz = 16
-            print(" ", hexlify_to_str(fun_data[ip : min(ip + sz, self.prelude_offset)]))
+            out(" ", hexlify_to_str(fun_data[ip : min(ip + sz, self.prelude_offset)]))
             ip += sz
-        self.disassemble_children()
+        self.disassemble_children(out=out)
 
-    def freeze(self):
+    def freeze(self, *, out):
         if self.scope_flags & ~0x0F:
             raise FreezeError("unable to freeze code with relocations")
 
         # generate native code data
-        print()
-        print(
+        out()
+        out(
             "// frozen native code for file %s, scope %s"
             % (self.qstr_table[0].str, self.escaped_name)
         )
-        print(
+        out(
             "static const byte fun_data_%s[%u] %s = {"
             % (self.escaped_name, len(self.fun_data), self.fun_data_attributes)
         )
@@ -1304,33 +1350,33 @@ class RawCodeNative(RawCode):
         while i < i_top:
             # copy machine code (max 16 bytes)
             i16 = min(i + 16, i_top)
-            print("   ", end="")
+            out("   ", end="")
             for ii in range(i, i16):
-                print(" 0x%02x," % self.fun_data[ii], end="")
-            print()
+                out(" 0x%02x," % self.fun_data[ii], end="")
+            out()
             i = i16
 
-        print("};")
+        out("};")
 
         prelude_ptr = None
         if self.code_kind == MP_CODE_NATIVE_PY:
             prelude_ptr = "fun_data_%s_prelude_macro" % self.escaped_name
-            print("#if MICROPY_EMIT_NATIVE_PRELUDE_SEPARATE_FROM_MACHINE_CODE")
+            out("#if MICROPY_EMIT_NATIVE_PRELUDE_SEPARATE_FROM_MACHINE_CODE")
             n = len(self.fun_data) - self.prelude_offset
-            print("static const byte fun_data_%s_prelude[%u] = {" % (self.escaped_name, n), end="")
+            out("static const byte fun_data_%s_prelude[%u] = {" % (self.escaped_name, n), end="")
             for i in range(n):
-                print(" 0x%02x," % self.fun_data[self.prelude_offset + i], end="")
-            print("};")
-            print("#define %s &fun_data_%s_prelude[0]" % (prelude_ptr, self.escaped_name))
-            print("#else")
-            print(
+                out(" 0x%02x," % self.fun_data[self.prelude_offset + i], end="")
+            out("};")
+            out("#define %s &fun_data_%s_prelude[0]" % (prelude_ptr, self.escaped_name))
+            out("#else")
+            out(
                 "#define %s &fun_data_%s[%u]"
                 % (prelude_ptr, self.escaped_name, self.prelude_offset)
             )
-            print("#endif")
+            out("#endif")
 
-        self.freeze_children(prelude_ptr)
-        self.freeze_raw_code(prelude_ptr, self.type_sig)
+        self.freeze_children(prelude_ptr, out=out)
+        self.freeze_raw_code(prelude_ptr, self.type_sig, out=out)
 
 
 class MPYSegment:
@@ -1573,17 +1619,17 @@ def read_mpy(filename):
     )
 
 
-def hexdump_mpy(compiled_modules):
+def hexdump_mpy(compiled_modules, *, out):
     for cm in compiled_modules:
-        cm.hexdump()
+        cm.hexdump(out=out)
 
 
-def disassemble_mpy(compiled_modules):
+def disassemble_mpy(compiled_modules, *, out):
     for cm in compiled_modules:
-        cm.disassemble()
+        cm.disassemble(out=out)
 
 
-def freeze_mpy(firmware_qstr_idents, compiled_modules):
+def freeze_mpy(firmware_qstr_idents, compiled_modules, *, out):
     # add to qstrs
     new = {}
     for q in global_qstrs.qstrs:
@@ -1594,49 +1640,49 @@ def freeze_mpy(firmware_qstr_idents, compiled_modules):
     # Sort by string value (because this is a sorted pool).
     new = sorted(new.values(), key=lambda x: x[2])
 
-    print('#include "py/mpconfig.h"')
-    print('#include "py/objint.h"')
-    print('#include "py/objstr.h"')
-    print('#include "py/emitglue.h"')
-    print('#include "py/nativeglue.h"')
-    print()
+    out('#include "py/mpconfig.h"')
+    out('#include "py/objint.h"')
+    out('#include "py/objstr.h"')
+    out('#include "py/emitglue.h"')
+    out('#include "py/nativeglue.h"')
+    out()
 
-    print("#if MICROPY_LONGINT_IMPL != %u" % config.MICROPY_LONGINT_IMPL)
-    print('#error "incompatible MICROPY_LONGINT_IMPL"')
-    print("#endif")
-    print()
+    out("#if MICROPY_LONGINT_IMPL != %u" % config.MICROPY_LONGINT_IMPL)
+    out('#error "incompatible MICROPY_LONGINT_IMPL"')
+    out("#endif")
+    out()
 
     if config.MICROPY_LONGINT_IMPL == config.MICROPY_LONGINT_IMPL_MPZ:
-        print("#if MPZ_DIG_SIZE != %u" % config.MPZ_DIG_SIZE)
-        print('#error "incompatible MPZ_DIG_SIZE"')
-        print("#endif")
-        print()
+        out("#if MPZ_DIG_SIZE != %u" % config.MPZ_DIG_SIZE)
+        out('#error "incompatible MPZ_DIG_SIZE"')
+        out("#endif")
+        out()
 
-    print("#if MICROPY_PY_BUILTINS_FLOAT")
-    print("typedef struct _mp_obj_float_t {")
-    print("    mp_obj_base_t base;")
-    print("    mp_float_t value;")
-    print("} mp_obj_float_t;")
-    print("#endif")
-    print()
+    out("#if MICROPY_PY_BUILTINS_FLOAT")
+    out("typedef struct _mp_obj_float_t {")
+    out("    mp_obj_base_t base;")
+    out("    mp_float_t value;")
+    out("} mp_obj_float_t;")
+    out("#endif")
+    out()
 
-    print("#if MICROPY_PY_BUILTINS_COMPLEX")
-    print("typedef struct _mp_obj_complex_t {")
-    print("    mp_obj_base_t base;")
-    print("    mp_float_t real;")
-    print("    mp_float_t imag;")
-    print("} mp_obj_complex_t;")
-    print("#endif")
-    print()
+    out("#if MICROPY_PY_BUILTINS_COMPLEX")
+    out("typedef struct _mp_obj_complex_t {")
+    out("    mp_obj_base_t base;")
+    out("    mp_float_t real;")
+    out("    mp_float_t imag;")
+    out("} mp_obj_complex_t;")
+    out("#endif")
+    out()
 
     if len(new) > 0:
-        print("enum {")
+        out("enum {")
         for i in range(len(new)):
             if i == 0:
-                print("    MP_QSTR_%s = MP_QSTRnumber_of," % new[i][1])
+                out("    MP_QSTR_%s = MP_QSTRnumber_of," % new[i][1])
             else:
-                print("    MP_QSTR_%s," % new[i][1])
-        print("};")
+                out("    MP_QSTR_%s," % new[i][1])
+        out("};")
 
     # As in qstr.c, set so that the first dynamically allocated pool is twice this size; must be <= the len
     qstr_pool_alloc = min(len(new), 10)
@@ -1661,101 +1707,101 @@ def freeze_mpy(firmware_qstr_idents, compiled_modules):
     raw_code_content = 0
 
     if config.MICROPY_QSTR_BYTES_IN_HASH:
-        print()
-        print("const qstr_hash_t mp_qstr_frozen_const_hashes[] = {")
+        out()
+        out("const qstr_hash_t mp_qstr_frozen_const_hashes[] = {")
         for _, _, _, qbytes in new:
             qhash = qstrutil.compute_hash(qbytes, config.MICROPY_QSTR_BYTES_IN_HASH)
-            print("    %d," % qhash)
+            out("    %d," % qhash)
             qstr_content += config.MICROPY_QSTR_BYTES_IN_HASH
-        print("};")
-    print()
-    print("const qstr_len_t mp_qstr_frozen_const_lengths[] = {")
+        out("};")
+    out()
+    out("const qstr_len_t mp_qstr_frozen_const_lengths[] = {")
     for _, _, _, qbytes in new:
-        print("    %d," % len(qbytes))
+        out("    %d," % len(qbytes))
         qstr_content += config.MICROPY_QSTR_BYTES_IN_LEN
         qstr_content += len(qbytes) + 1  # include NUL
-    print("};")
-    print()
-    print("extern const qstr_pool_t mp_qstr_const_pool;")
-    print("const qstr_pool_t mp_qstr_frozen_const_pool = {")
-    print("    &mp_qstr_const_pool, // previous pool")
-    print("    MP_QSTRnumber_of, // previous pool size")
-    print("    true, // is_sorted")
-    print("    %u, // allocated entries" % qstr_pool_alloc)
-    print("    %u, // used entries" % len(new))
+    out("};")
+    out()
+    out("extern const qstr_pool_t mp_qstr_const_pool;")
+    out("const qstr_pool_t mp_qstr_frozen_const_pool = {")
+    out("    &mp_qstr_const_pool, // previous pool")
+    out("    MP_QSTRnumber_of, // previous pool size")
+    out("    true, // is_sorted")
+    out("    %u, // allocated entries" % qstr_pool_alloc)
+    out("    %u, // used entries" % len(new))
     if config.MICROPY_QSTR_BYTES_IN_HASH:
-        print("    (qstr_hash_t *)mp_qstr_frozen_const_hashes,")
-    print("    (qstr_len_t *)mp_qstr_frozen_const_lengths,")
-    print("    {")
+        out("    (qstr_hash_t *)mp_qstr_frozen_const_hashes,")
+    out("    (qstr_len_t *)mp_qstr_frozen_const_lengths,")
+    out("    {")
     for _, _, qstr, qbytes in new:
-        print('        "%s",' % qstrutil.escape_bytes(qstr, qbytes))
-    print("    },")
-    print("};")
+        out('        "%s",' % qstrutil.escape_bytes(qstr, qbytes))
+    out("    },")
+    out("};")
 
     # Freeze all modules.
     for idx, cm in enumerate(compiled_modules):
         cm.freeze(idx)
 
     # Print separator, separating individual modules from global data structures.
-    print()
-    print("/" * 80)
-    print("// collection of all frozen modules")
+    out()
+    out("/" * 80)
+    out("// collection of all frozen modules")
 
     # Define the string of frozen module names.
-    print()
-    print("const char mp_frozen_names[] = {")
-    print("    #ifdef MP_FROZEN_STR_NAMES")
+    out()
+    out("const char mp_frozen_names[] = {")
+    out("    #ifdef MP_FROZEN_STR_NAMES")
     # makemanifest.py might also include some frozen string content.
-    print("    MP_FROZEN_STR_NAMES")
-    print("    #endif")
+    out("    MP_FROZEN_STR_NAMES")
+    out("    #endif")
     mp_frozen_mpy_names_content = 1
     for cm in compiled_modules:
         module_name = cm.source_file.str
-        print('    "%s\\0"' % module_name)
+        out('    "%s\\0"' % module_name)
         mp_frozen_mpy_names_content += len(cm.source_file.str) + 1
-    print('    "\\0"')
-    print("};")
+    out('    "\\0"')
+    out("};")
 
     # Define the array of pointers to frozen module content.
-    print()
-    print("const mp_frozen_module_t *const mp_frozen_mpy_content[] = {")
+    out()
+    out("const mp_frozen_module_t *const mp_frozen_mpy_content[] = {")
     for cm in compiled_modules:
-        print("    &frozen_module_%s," % cm.escaped_name)
-    print("};")
+        out("    &frozen_module_%s," % cm.escaped_name)
+    out("};")
     mp_frozen_mpy_content_size = len(compiled_modules * 4)
 
     # If a port defines MICROPY_FROZEN_LIST_ITEM then list all modules wrapped in that macro.
-    print()
-    print("#ifdef MICROPY_FROZEN_LIST_ITEM")
+    out()
+    out("#ifdef MICROPY_FROZEN_LIST_ITEM")
     for cm in compiled_modules:
         module_name = cm.source_file.str
         if module_name.endswith("/__init__.py"):
             short_name = module_name[: -len("/__init__.py")]
         else:
             short_name = module_name[: -len(".py")]
-        print('MICROPY_FROZEN_LIST_ITEM("%s", "%s")' % (short_name, module_name))
-    print("#endif")
+        out('MICROPY_FROZEN_LIST_ITEM("%s", "%s")' % (short_name, module_name))
+    out("#endif")
 
-    print()
-    print("/*")
-    print("byte sizes:")
-    print("qstr content: %d unique, %d bytes" % (len(new), qstr_content))
-    print("bc content: %d" % bc_content)
-    print("const str content: %d" % const_str_content)
-    print("const int content: %d" % const_int_content)
-    print("const obj content: %d" % const_obj_content)
-    print(
+    out()
+    out("/*")
+    out("byte sizes:")
+    out("qstr content: %d unique, %d bytes" % (len(new), qstr_content))
+    out("bc content: %d" % bc_content)
+    out("const str content: %d" % const_str_content)
+    out("const int content: %d" % const_int_content)
+    out("const obj content: %d" % const_obj_content)
+    out(
         "const table qstr content: %d entries, %d bytes"
         % (const_table_qstr_content, const_table_qstr_content * 4)
     )
-    print(
+    out(
         "const table ptr content: %d entries, %d bytes"
         % (const_table_ptr_content, const_table_ptr_content * 4)
     )
-    print("raw code content: %d * 4 = %d" % (raw_code_count, raw_code_content))
-    print("mp_frozen_mpy_names_content: %d" % mp_frozen_mpy_names_content)
-    print("mp_frozen_mpy_content_size: %d" % mp_frozen_mpy_content_size)
-    print(
+    out("raw code content: %d * 4 = %d" % (raw_code_count, raw_code_content))
+    out("mp_frozen_mpy_names_content: %d" % mp_frozen_mpy_names_content)
+    out("mp_frozen_mpy_content_size: %d" % mp_frozen_mpy_content_size)
+    out(
         "total: %d"
         % (
             qstr_content
@@ -1770,7 +1816,7 @@ def freeze_mpy(firmware_qstr_idents, compiled_modules):
             + mp_frozen_mpy_content_size
         )
     )
-    print("*/")
+    out("*/")
 
 
 def adjust_bytecode_qstr_obj_indices(bytecode_in, qstr_table_base, obj_table_base):
@@ -1984,100 +2030,6 @@ def extract_segments(compiled_modules, basename, kinds_arg):
                 output.write(source.read(segment.end - segment.start))
 
 
-class PrintShim:
-    """Base class for interposing extra functionality onto the global `print` method."""
-
-    def __init__(self):
-        self.wrapped_print = None
-
-    def __enter__(self):
-        global print
-
-        if self.wrapped_print is not None:
-            raise RecursionError
-
-        self.wrapped_print = print
-        print = self
-
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        global print
-
-        if self.wrapped_print is None:
-            return
-
-        print = self.wrapped_print
-        self.wrapped_print = None
-
-        self.on_exit()
-
-    def on_exit(self):
-        pass
-
-    def __call__(self, *a, **k):
-        return self.wrapped_print(*a, **k)
-
-
-class PrintIgnoreExtraArgs(PrintShim):
-    """Just strip the `annotations` and `labels` kwargs and pass down to the underlying print."""
-
-    def __call__(self, *a, annotations: dict = {}, labels: "list[str]" = (), **k):
-        return self.wrapped_print(*a, **k)
-
-
-class PrintJson(PrintShim):
-    """Output lines as godbolt-compatible JSON with extra annotation info from `annotations` and `labels`, rather than plain text."""
-
-    def __init__(self, fp=sys.stdout):
-        super().__init__()
-        self.fp = fp
-        self.asm = {
-            "asm": [],
-            "labelDefinitions": {},
-            "languageId": "mpy",
-        }
-        self.line_number: int = 0
-        self.buf: "io.StringIO | None" = None
-
-    def on_exit(self):
-        import json
-
-        if self.buf is not None:
-            # flush last partial line
-            self.__call__()
-
-        json.dump(self.asm, self.fp)
-
-    def __call__(self, *a, annotations: dict = {}, labels: "list[str]" = (), **k):
-        # ignore prints directed to an explicit output
-        if "file" in k:
-            return super().__call__(*a, **k)
-
-        if self.buf is None:
-            self.buf = io.StringIO()
-
-        super().__call__(*a, file=sys.stderr, **k)
-
-        if "end" in k:
-            # buffer partial-line prints to collect into a single AsmResultLine
-            return super().__call__(*a, file=self.buf, **k)
-        else:
-            retval = super().__call__(*a, file=self.buf, end="", **k)
-            output = self.buf.getvalue()
-            self.buf = None
-
-        asm_line = {"text": output}
-        asm_line.update(annotations)
-        self.asm["asm"].append(asm_line)
-
-        self.line_number += 1
-        for label in labels:
-            self.asm["labelDefinitions"][label] = self.line_number
-
-        return retval
-
-
 def main(args=None):
     global global_qstrs
 
@@ -2165,22 +2117,23 @@ def main(args=None):
         sys.exit(1)
 
     if args.json:
-        print_shim = PrintJson(sys.stdout)
+        languageId = "C" if args.freeze and not args.disassemble else "mpy"
+        output = JsonOutputter(sys.stdout, languageId=languageId)
     else:
-        print_shim = PrintIgnoreExtraArgs()
+        output = default_printer
 
-    with print_shim:
+    with output as out:
         if args.hexdump:
-            hexdump_mpy(compiled_modules)
+            hexdump_mpy(compiled_modules, out=out)
 
         if args.disassemble:
             if args.hexdump:
-                print()
-            disassemble_mpy(compiled_modules)
+                output()
+            disassemble_mpy(compiled_modules, out=out)
 
         if args.freeze:
             try:
-                freeze_mpy(firmware_qstr_idents, compiled_modules)
+                freeze_mpy(firmware_qstr_idents, compiled_modules, out=out)
             except FreezeError as er:
                 print(er, file=sys.stderr)
                 sys.exit(1)
