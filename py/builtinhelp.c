@@ -28,7 +28,10 @@
 #include <string.h>
 
 #include "py/builtin.h"
+#include "py/mpstate.h"
 #include "py/objmodule.h"
+#include "py/runtime.h"
+#include "py/qstr.h"
 
 #if MICROPY_PY_BUILTINS_HELP
 
@@ -46,14 +49,6 @@ const char mp_help_default_text[] =
     "\n"
     "For further help on a specific object, type help(obj)\n"
 ;
-
-static void mp_help_print_info_about_object(mp_obj_t name_o, mp_obj_t value) {
-    mp_print_str(MP_PYTHON_PRINTER, "  ");
-    mp_obj_print(name_o, PRINT_STR);
-    mp_print_str(MP_PYTHON_PRINTER, " -- ");
-    mp_obj_print(value, PRINT_STR);
-    mp_print_str(MP_PYTHON_PRINTER, "\n");
-}
 
 #if MICROPY_PY_BUILTINS_HELP_MODULES
 static void mp_help_add_from_map(mp_obj_t list, const mp_map_t *map) {
@@ -124,6 +119,26 @@ static void mp_help_print_modules(void) {
 }
 #endif
 
+static void mp_help_print_obj_attr(const mp_obj_t obj, const qstr name) {
+    mp_obj_t dest[2];
+    mp_load_method_protected(obj, name, dest, true);
+    if (dest[0] == MP_OBJ_NULL) {
+        return;
+    }
+    mp_print_str(MP_PYTHON_PRINTER, "  ");
+    mp_obj_print(MP_OBJ_NEW_QSTR(name), PRINT_STR);
+    mp_print_str(MP_PYTHON_PRINTER, " -- ");
+    if (dest[1] != MP_OBJ_NULL) { // extra <class 'A'>.<function f>
+        mp_obj_print(dest[1], PRINT_STR);
+        mp_print_str(MP_PYTHON_PRINTER, ".");
+        mp_obj_print(dest[0], PRINT_STR);
+    } else {
+        mp_obj_print(dest[0], PRINT_REPR);
+    }
+    mp_print_str(MP_PYTHON_PRINTER, "\n");
+
+}
+
 static void mp_help_print_obj(const mp_obj_t obj) {
     #if MICROPY_PY_BUILTINS_HELP_MODULES
     if (obj == MP_OBJ_NEW_QSTR(MP_QSTR_modules)) {
@@ -139,22 +154,22 @@ static void mp_help_print_obj(const mp_obj_t obj) {
     mp_obj_print(obj, PRINT_STR);
     mp_printf(MP_PYTHON_PRINTER, " is of type %q\n", (qstr)type->name);
 
-    mp_map_t *map = NULL;
-    if (type == &mp_type_module) {
-        map = &mp_obj_module_get_globals(obj)->map;
+    mp_obj_t dest[2];
+    mp_load_method_protected(obj, MP_QSTR___dir__, dest, true);
+    if (dest[1] != MP_OBJ_NULL) {
+        // probe __dir__ entries
+        mp_obj_t dir = mp_call_method_n_kw(0, 0, dest);
+        size_t len;
+        mp_obj_t *items;
+        mp_obj_list_get(dir, &len, &items);
+        for (size_t i = 0; i < len; ++i) {
+            mp_help_print_obj_attr(obj, mp_obj_str_get_qstr(items[i]));
+        }
     } else {
-        if (type == &mp_type_type) {
-            type = MP_OBJ_TO_PTR(obj);
-        }
-        if (MP_OBJ_TYPE_HAS_SLOT(type, locals_dict)) {
-            map = &MP_OBJ_TYPE_GET_SLOT(type, locals_dict)->map;
-        }
-    }
-    if (map != NULL) {
-        for (uint i = 0; i < map->alloc; i++) {
-            if (mp_map_slot_is_filled(map, i)) {
-                mp_help_print_info_about_object(map->table[i].key, map->table[i].value);
-            }
+        // probe all qstrs
+        size_t nqstr = QSTR_TOTAL();
+        for (qstr name = MP_QSTR_ + 1; name < nqstr; ++name) {
+            mp_help_print_obj_attr(obj, name);
         }
     }
 }
