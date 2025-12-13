@@ -55,17 +55,17 @@ extern const mp_obj_type_t mp_type_attrtuple;
         .items = { __VA_ARGS__, MP_ROM_PTR((void *)fields) } \
     }
 
-// Macro to create an attrtuple object from an xlist enumerating
-// the attrtuple's contained pairs of names and values.
-// Usage:
-// ```C
-// #define MY_ATTRS(X) \
-//     X(attr1, value1) \
-//     X(attr2, value2) \
-//     ...
-// mp_obj_tuple_t *my_attrtuple = MP_MAKE_ATTRTUPLE(my_attrtuple, MY_ATTRS);
-// #undef MY_ATTRS
-// ```
+/*
+Macro to create an attrtuple object from an xlist enumerating the attrtuple's contained pairs of names and values.
+```C
+#define MY_ATTRS(X) \
+    X(attr1, value1) \
+    X(attr2, value2) \
+    ...
+mp_obj_tuple_t *my_attrtuple = MP_MAKE_ATTRTUPLE(my_attrtuple, MY_ATTRS);
+#undef MY_ATTRS
+```
+*/
 #define MP_MAKE_ATTRTUPLE(tuple_obj_name, XLIST) \
     mp_obj_malloc_var(mp_obj_tuple_t, items, mp_obj_t, 1 XLIST(_MP_MAKE_ATTRTUPLE_COUNT_X), &mp_type_attrtuple); \
     do { \
