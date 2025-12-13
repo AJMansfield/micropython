@@ -55,6 +55,39 @@ extern const mp_obj_type_t mp_type_attrtuple;
         .items = { __VA_ARGS__, MP_ROM_PTR((void *)fields) } \
     }
 
+// Macro to create an attrtuple object from an xlist enumerating
+// the attrtuple's contained pairs of names and values.
+// Usage:
+// ```C
+// #define MY_ATTRS(X) \
+//     X(attr1, value1) \
+//     X(attr2, value2) \
+//     ...
+// mp_obj_tuple_t *my_attrtuple = MP_MAKE_ATTRTUPLE(my_attrtuple, MY_ATTRS);
+// #undef MY_ATTRS
+// ```
+#define MP_MAKE_ATTRTUPLE(tuple_obj_name, XLIST) \
+    mp_obj_malloc_var(mp_obj_tuple_t, items, mp_obj_t, 1 XLIST(_MP_MAKE_ATTRTUPLE_COUNT_X), &mp_type_attrtuple); \
+    do { \
+        enum tuple_obj_name##_ATTRS: size_t { \
+            XLIST(_MP_MAKE_ATTRTUPLE_INDEX_X) \
+            tuple_obj_name##_NATTRS = XLIST(_MP_MAKE_ATTRTUPLE_COUNT_X) \
+        }; \
+        static const qstr tuple_obj_name##_FIELDS[tuple_obj_name##_NATTRS] = { XLIST(_MP_MAKE_ATTRTUPLE_FIELD_X) }; \
+        tuple_obj_name->len = tuple_obj_name##_NATTRS; \
+        do { \
+            mp_obj_tuple_t *_MP_MAKE_ATTRTUPLE_TARGET = tuple_obj_name; \
+            XLIST(_MP_MAKE_ATTRTUPLE_PLACE_X) \
+        } while (0); \
+        tuple_obj_name->items[tuple_obj_name##_NATTRS] = MP_OBJ_FROM_PTR(tuple_obj_name##_FIELDS); \
+    } while (0)
+
+#define _MP_MAKE_ATTRTUPLE_COUNT_X(...) + 1
+#define _MP_MAKE_ATTRTUPLE_INDEX_X(name, ...) ATTRTUPLE_ATTR_##name,
+#define _MP_MAKE_ATTRTUPLE_FIELD_X(name, ...) [ATTRTUPLE_ATTR_##name] = MP_QSTR_##name,
+#define _MP_MAKE_ATTRTUPLE_VALUE_X(name, ...) [ATTRTUPLE_ATTR_##name] = __VA_ARGS__,
+#define _MP_MAKE_ATTRTUPLE_PLACE_X(name, ...) _MP_MAKE_ATTRTUPLE_TARGET->items[ATTRTUPLE_ATTR_##name] = __VA_ARGS__;
+
 #if MICROPY_PY_COLLECTIONS
 void mp_obj_attrtuple_print_helper(const mp_print_t *print, const qstr *fields, mp_obj_tuple_t *o);
 #endif
