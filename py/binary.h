@@ -34,6 +34,56 @@
 // type-specification errors due to end-of-string.
 #define BYTEARRAY_TYPECODE 1
 
+
+#if MICROPY_LONGINT_IMPL != MICROPY_LONGINT_IMPL_NONE
+#define _MP_TYPECODES_LONGINT \
+    long long : 'q', \
+    unsigned long long : 'Q',
+#else
+#define _MP_TYPECODES_LONGINT
+#endif
+
+#if MICROPY_PY_BUILTINS_FLOAT
+#define _MP_TYPECODES_FLOAT \
+    float : 'f', \
+    double : 'd',
+// array/memoryview of half-precision float (16-bit)
+#define MP_TYPECODE_HALFFLOAT 'e'
+#else
+#define _MP_TYPECODES_FLOAT
+#endif
+
+#if MICROPY_PY_STRUCT_UNSAFE_TYPECODES
+/* UNCRUSTIFY-OFF */
+#define _MP_TYPECODES_UNSAFE_UNCRUSTIFY_WORKAROUND_STAR *
+// note that mp_obj_t is equivalent to void *, and can't be distinguished by _Generic
+#define _MP_TYPECODES_UNSAFE \
+    char _MP_TYPECODES_UNSAFE_UNCRUSTIFY_WORKAROUND_STAR: 'S', \
+    void _MP_TYPECODES_UNSAFE_UNCRUSTIFY_WORKAROUND_STAR: 'P',
+/* UNCRUSTIFY-ON */
+// array/memoryview of mp_obj_t
+#define MP_TYPECODE_OBJECT 'O'
+#else
+#define _MP_TYPECODES_UNSAFE
+#endif
+
+// array/memoryview of the given C type
+#define MP_TYPECODE_C(type) _Generic((type)0, \
+    _MP_TYPECODES_LONGINT \
+    _MP_TYPECODES_FLOAT \
+    _MP_TYPECODES_UNSAFE \
+    char : 'b', \
+    signed char : 'b', \
+    unsigned char : 'B', \
+    short : 'h', \
+    unsigned short : 'H', \
+    int : 'i', \
+    unsigned int : 'I', \
+    long : 'l', \
+    unsigned long : 'L' \
+    )
+
+
 size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign);
 mp_obj_t mp_binary_get_val_array(char typecode, void *p, size_t index);
 void mp_binary_set_val_array(char typecode, void *p, size_t index, mp_obj_t val_in);
