@@ -49,40 +49,40 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
         case '<':
         case '>':
             switch (val_type) {
-                case MP_TYPECODE_C(signed char):
-                case MP_TYPECODE_C(unsigned char):
+                case MP_TYPECODE_INT8:
+                case MP_TYPECODE_UINT8:
                     size = 1;
                     break;
-                case MP_TYPECODE_C(short):
-                case MP_TYPECODE_C(unsigned short):
+                case MP_TYPECODE_INT16:
+                case MP_TYPECODE_UINT16:
                     size = 2;
                     break;
-                case MP_TYPECODE_C(int):
-                case MP_TYPECODE_C(unsigned int):
+                case MP_TYPECODE_INT32:
+                case MP_TYPECODE_UINT32:
                     size = 4;
                     break;
-                case MP_TYPECODE_C(long):
-                case MP_TYPECODE_C(unsigned long):
+                case MP_TYPECODE_INT64:
+                case MP_TYPECODE_UINT64:
                     size = 4;
                     break;
-                case MP_TYPECODE_C(long long):
-                case MP_TYPECODE_C(unsigned long long):
+                case MP_TYPECODE_INT128:
+                case MP_TYPECODE_UINT128:
                     size = 8;
                     break;
                 #if MICROPY_PY_STRUCT_UNSAFE_TYPECODES
-                case MP_TYPECODE_C(void *):
+                case MP_TYPECODE_POINTER:
                 case MP_TYPECODE_OBJECT:
-                case MP_TYPECODE_C(char *):
+                case MP_TYPECODE_STRING:
                     size = sizeof(void *);
                     break;
                 #endif
                 case MP_TYPECODE_FLOAT16:
                     size = 2;
                     break;
-                case MP_TYPECODE_C(float):
+                case MP_TYPECODE_FLOAT32:
                     size = 4;
                     break;
-                case MP_TYPECODE_C(double):
+                case MP_TYPECODE_FLOAT64:
                     size = 8;
                     break;
             }
@@ -97,34 +97,34 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
             // particular (or any) ABI.
             switch (val_type) {
                 case MP_TYPECODE_BYTEARRAY:
-                case MP_TYPECODE_C(signed char):
-                case MP_TYPECODE_C(unsigned char):
+                case MP_TYPECODE_INT8:
+                case MP_TYPECODE_UINT8:
                     align = size = 1;
                     break;
-                case MP_TYPECODE_C(short):
-                case MP_TYPECODE_C(unsigned short):
+                case MP_TYPECODE_INT16:
+                case MP_TYPECODE_UINT16:
                     align = alignof(short);
                     size = sizeof(short);
                     break;
-                case MP_TYPECODE_C(int):
-                case MP_TYPECODE_C(unsigned int):
+                case MP_TYPECODE_INT32:
+                case MP_TYPECODE_UINT32:
                     align = alignof(int);
                     size = sizeof(int);
                     break;
-                case MP_TYPECODE_C(long):
-                case MP_TYPECODE_C(unsigned long):
+                case MP_TYPECODE_INT64:
+                case MP_TYPECODE_UINT64:
                     align = alignof(long);
                     size = sizeof(long);
                     break;
-                case MP_TYPECODE_C(long long):
-                case MP_TYPECODE_C(unsigned long long):
+                case MP_TYPECODE_INT128:
+                case MP_TYPECODE_UINT128:
                     align = alignof(long long);
                     size = sizeof(long long);
                     break;
                 #if MICROPY_PY_STRUCT_UNSAFE_TYPECODES
-                case MP_TYPECODE_C(void *):
+                case MP_TYPECODE_POINTER:
                 case MP_TYPECODE_OBJECT:
-                case MP_TYPECODE_C(char *):
+                case MP_TYPECODE_STRING:
                     align = alignof(void *);
                     size = sizeof(void *);
                     break;
@@ -133,11 +133,11 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
                     align = 2;
                     size = 2;
                     break;
-                case MP_TYPECODE_C(float):
+                case MP_TYPECODE_FLOAT32:
                     align = alignof(float);
                     size = sizeof(float);
                     break;
-                case MP_TYPECODE_C(double):
+                case MP_TYPECODE_FLOAT64:
                     align = alignof(double);
                     size = sizeof(double);
                     break;
@@ -251,37 +251,37 @@ static uint16_t mp_encode_half_float(float x) {
 mp_obj_t mp_binary_get_val_array(char typecode, void *p, size_t index) {
     mp_int_t val = 0;
     switch (typecode) {
-        case MP_TYPECODE_C(signed char):
+        case MP_TYPECODE_INT8:
             val = ((signed char *)p)[index];
             break;
         case MP_TYPECODE_BYTEARRAY:
-        case MP_TYPECODE_C(unsigned char):
+        case MP_TYPECODE_UINT8:
             val = ((unsigned char *)p)[index];
             break;
-        case MP_TYPECODE_C(short):
+        case MP_TYPECODE_INT16:
             val = ((short *)p)[index];
             break;
-        case MP_TYPECODE_C(unsigned short):
+        case MP_TYPECODE_UINT16:
             val = ((unsigned short *)p)[index];
             break;
-        case MP_TYPECODE_C(int):
+        case MP_TYPECODE_INT32:
             return mp_obj_new_int(((int *)p)[index]);
-        case MP_TYPECODE_C(unsigned int):
+        case MP_TYPECODE_UINT32:
             return mp_obj_new_int_from_uint(((unsigned int *)p)[index]);
-        case MP_TYPECODE_C(long):
+        case MP_TYPECODE_INT64:
             return mp_obj_new_int(((long *)p)[index]);
-        case MP_TYPECODE_C(unsigned long):
+        case MP_TYPECODE_UINT64:
             return mp_obj_new_int_from_uint(((unsigned long *)p)[index]);
         #if MICROPY_LONGINT_IMPL != MICROPY_LONGINT_IMPL_NONE
-        case MP_TYPECODE_C(long long):
+        case MP_TYPECODE_INT128:
             return mp_obj_new_int_from_ll(((long long *)p)[index]);
-        case MP_TYPECODE_C(unsigned long long):
+        case MP_TYPECODE_UINT128:
             return mp_obj_new_int_from_ull(((unsigned long long *)p)[index]);
         #endif
         #if MICROPY_PY_BUILTINS_FLOAT
-        case MP_TYPECODE_C(float):
+        case MP_TYPECODE_FLOAT32:
             return mp_obj_new_float_from_f(((float *)p)[index]);
-        case MP_TYPECODE_C(double):
+        case MP_TYPECODE_FLOAT64:
             return mp_obj_new_float_from_d(((double *)p)[index]);
         #endif
             // Extension to CPython: array of objects
@@ -289,7 +289,7 @@ mp_obj_t mp_binary_get_val_array(char typecode, void *p, size_t index) {
         case MP_TYPECODE_OBJECT:
             return ((mp_obj_t *)p)[index];
         // Extension to CPython: array of pointers
-        case MP_TYPECODE_C(void *):
+        case MP_TYPECODE_POINTER:
             return mp_obj_new_int((mp_int_t)(uintptr_t)((void **)p)[index]);
         #endif
     }
@@ -342,19 +342,19 @@ mp_obj_t mp_binary_get_val(char struct_type, char val_type, byte *p_base, byte *
 
     if (MICROPY_PY_STRUCT_UNSAFE_TYPECODES && val_type == MP_TYPECODE_OBJECT) {
         return (mp_obj_t)(mp_uint_t)val;
-    } else if (MICROPY_PY_STRUCT_UNSAFE_TYPECODES && val_type == MP_TYPECODE_C(char *)) {
+    } else if (MICROPY_PY_STRUCT_UNSAFE_TYPECODES && val_type == MP_TYPECODE_STRING) {
         const char *s_val = (const char *)(uintptr_t)(mp_uint_t)val;
         return mp_obj_new_str_from_cstr(s_val);
     #if MICROPY_PY_BUILTINS_FLOAT
     } else if (val_type == MP_TYPECODE_FLOAT16) {
         return mp_obj_new_float_from_f(mp_decode_half_float(val));
-    } else if (val_type == MP_TYPECODE_C(float)) {
+    } else if (val_type == MP_TYPECODE_FLOAT32) {
         union {
             uint32_t i;
             float f;
         } fpu = {val};
         return mp_obj_new_float_from_f(fpu.f);
-    } else if (val_type == MP_TYPECODE_C(double)) {
+    } else if (val_type == MP_TYPECODE_FLOAT64) {
         union {
             uint64_t i;
             double f;
@@ -422,7 +422,7 @@ void mp_binary_set_val(char struct_type, char val_type, mp_obj_t val_in, byte *p
         case MP_TYPECODE_FLOAT16:
             val = mp_encode_half_float(mp_obj_get_float_to_f(val_in));
             break;
-        case MP_TYPECODE_C(float): {
+        case MP_TYPECODE_FLOAT32: {
             union {
                 uint32_t i;
                 float f;
@@ -431,7 +431,7 @@ void mp_binary_set_val(char struct_type, char val_type, mp_obj_t val_in, byte *p
             val = fp_sp.i;
             break;
         }
-        case MP_TYPECODE_C(double): {
+        case MP_TYPECODE_FLOAT64: {
             union {
                 uint64_t i64;
                 uint32_t i32[2];
@@ -475,10 +475,10 @@ void mp_binary_set_val(char struct_type, char val_type, mp_obj_t val_in, byte *p
 void mp_binary_set_val_array(char typecode, void *p, size_t index, mp_obj_t val_in) {
     switch (typecode) {
         #if MICROPY_PY_BUILTINS_FLOAT
-        case MP_TYPECODE_C(float):
+        case MP_TYPECODE_FLOAT32:
             ((float *)p)[index] = mp_obj_get_float_to_f(val_in);
             break;
-        case MP_TYPECODE_C(double):
+        case MP_TYPECODE_FLOAT64:
             ((double *)p)[index] = mp_obj_get_float_to_d(val_in);
             break;
         #endif
@@ -503,50 +503,50 @@ void mp_binary_set_val_array(char typecode, void *p, size_t index, mp_obj_t val_
 
 void mp_binary_set_val_array_from_int(char typecode, void *p, size_t index, mp_int_t val) {
     switch (typecode) {
-        case MP_TYPECODE_C(signed char):
+        case MP_TYPECODE_INT8:
             ((signed char *)p)[index] = val;
             break;
         case MP_TYPECODE_BYTEARRAY:
-        case MP_TYPECODE_C(unsigned char):
+        case MP_TYPECODE_UINT8:
             ((unsigned char *)p)[index] = val;
             break;
-        case MP_TYPECODE_C(short):
+        case MP_TYPECODE_INT16:
             ((short *)p)[index] = val;
             break;
-        case MP_TYPECODE_C(unsigned short):
+        case MP_TYPECODE_UINT16:
             ((unsigned short *)p)[index] = val;
             break;
-        case MP_TYPECODE_C(int):
+        case MP_TYPECODE_INT32:
             ((int *)p)[index] = val;
             break;
-        case MP_TYPECODE_C(unsigned int):
+        case MP_TYPECODE_UINT32:
             ((unsigned int *)p)[index] = val;
             break;
-        case MP_TYPECODE_C(long):
+        case MP_TYPECODE_INT64:
             ((long *)p)[index] = val;
             break;
-        case MP_TYPECODE_C(unsigned long):
+        case MP_TYPECODE_UINT64:
             ((unsigned long *)p)[index] = val;
             break;
         #if MICROPY_LONGINT_IMPL != MICROPY_LONGINT_IMPL_NONE
-        case MP_TYPECODE_C(long long):
+        case MP_TYPECODE_INT128:
             ((long long *)p)[index] = val;
             break;
-        case MP_TYPECODE_C(unsigned long long):
+        case MP_TYPECODE_UINT128:
             ((unsigned long long *)p)[index] = val;
             break;
         #endif
         #if MICROPY_PY_BUILTINS_FLOAT
-        case MP_TYPECODE_C(float):
+        case MP_TYPECODE_FLOAT32:
             ((float *)p)[index] = (float)val;
             break;
-        case MP_TYPECODE_C(double):
+        case MP_TYPECODE_FLOAT64:
             ((double *)p)[index] = (double)val;
             break;
         #endif
             // Extension to CPython: array of pointers
         #if MICROPY_PY_STRUCT_UNSAFE_TYPECODES
-        case MP_TYPECODE_C(void *):
+        case MP_TYPECODE_POINTER:
             ((void **)p)[index] = (void *)(uintptr_t)val;
             break;
         #endif
