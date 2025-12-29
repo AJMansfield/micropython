@@ -886,8 +886,8 @@ static mp_obj_t rp2_state_machine_put(size_t n_args, const mp_obj_t *args) {
     if (!mp_get_buffer(args[1], &bufinfo, MP_BUFFER_READ)) {
         data = mp_obj_get_int_truncated(args[1]);
         bufinfo.buf = &data;
-        bufinfo.len = sizeof(uint32_t);
-        bufinfo.typecode = MP_TYPECODE_C(uint32_t);
+        bufinfo.len = sizeof(data);
+        bufinfo.typecode = MP_TYPECODE_C(data);
     }
     const uint8_t *src = bufinfo.buf;
     const uint8_t *src_top = src + bufinfo.len;

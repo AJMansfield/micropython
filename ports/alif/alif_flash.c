@@ -86,7 +86,7 @@ static mp_int_t alif_flash_get_buffer(mp_obj_t self_in, mp_buffer_info_t *bufinf
     if (flags == MP_BUFFER_READ) {
         bufinfo->buf = (void *)(ospi_flash_get_xip_base() + self->flash_base_addr);
         bufinfo->len = self->flash_size;
-        bufinfo->typecode = MP_TYPECODE_C(unsigned char);
+        bufinfo->typecode = MP_TYPECODE_C(uint8_t);
         return 0;
     } else {
         // Can't return a writable buffer.

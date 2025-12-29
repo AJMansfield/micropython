@@ -86,7 +86,7 @@ static mp_int_t vfs_rom_file_get_buffer(mp_obj_t self_in, mp_buffer_info_t *bufi
     if (flags == MP_BUFFER_READ) {
         bufinfo->buf = (void *)self->file_data;
         bufinfo->len = self->file_size;
-        bufinfo->typecode = MP_TYPECODE_C(unsigned char);
+        bufinfo->typecode = MP_TYPECODE_C(self->file_data[0]);
         return 0;
     } else {
         // Can't write to a ROM file.

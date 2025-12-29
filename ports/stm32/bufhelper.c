@@ -32,8 +32,8 @@ void pyb_buf_get_for_send(mp_obj_t o, mp_buffer_info_t *bufinfo, byte *tmp_data)
     if (mp_obj_is_int(o)) {
         tmp_data[0] = mp_obj_get_int(o);
         bufinfo->buf = tmp_data;
-        bufinfo->len = 1;
-        bufinfo->typecode = MP_TYPECODE_C(unsigned char);
+        bufinfo->len = sizeof(tmp_data[0]);
+        bufinfo->typecode = MP_TYPECODE_C(tmp_data[0]);
     } else {
         mp_get_buffer_raise(o, bufinfo, MP_BUFFER_READ);
     }

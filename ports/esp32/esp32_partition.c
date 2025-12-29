@@ -137,7 +137,7 @@ static mp_int_t esp32_partition_get_buffer(mp_obj_t self_in, mp_buffer_info_t *b
         }
         bufinfo->buf = (void *)esp32_partition_romfs_ptr;
         bufinfo->len = self->part->size;
-        bufinfo->typecode = MP_TYPECODE_C(unsigned char);
+        bufinfo->typecode = MP_TYPECODE_C(uint8_t);
         return 0;
     } else {
         // Unsupported.

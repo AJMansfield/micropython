@@ -681,7 +681,7 @@ static mp_obj_t pyb_can_recv(size_t n_args, const mp_obj_t *pos_args, mp_map_t *
         }
         mp_obj_array_t *mv = MP_OBJ_TO_PTR(items[4]);
         if (!(mv->typecode == (MP_TYPECODE_FLAG_RW | MP_TYPECODE_BYTEARRAY)
-              || (mv->typecode | 0x20) == (MP_TYPECODE_FLAG_RW | MP_TYPECODE_C(char)))) {
+              || (mv->typecode | 0x20) == (MP_TYPECODE_FLAG_RW | MP_TYPECODE_C(uint8_t)))) {
             mp_raise_ValueError(NULL);
         }
         mv->len = rx_dlc;

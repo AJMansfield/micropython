@@ -2065,7 +2065,7 @@ mp_int_t mp_obj_str_get_buffer(mp_obj_t self_in, mp_buffer_info_t *bufinfo, mp_u
         GET_STR_DATA_LEN(self_in, str_data, str_len);
         bufinfo->buf = (void *)str_data;
         bufinfo->len = str_len;
-        bufinfo->typecode = MP_TYPECODE_C(unsigned char); // bytes should be unsigned, so should unicode byte-access
+        bufinfo->typecode = MP_TYPECODE_C(*str_data); // bytes should be unsigned, so should unicode byte-access
         return 0;
     } else {
         // can't write to a string

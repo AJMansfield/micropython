@@ -76,7 +76,7 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
                     size = sizeof(void *);
                     break;
                 #endif
-                case MP_TYPECODE_HALFFLOAT:
+                case MP_TYPECODE_FLOAT16:
                     size = 2;
                     break;
                 case MP_TYPECODE_C(float):
@@ -129,7 +129,7 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
                     size = sizeof(void *);
                     break;
                 #endif
-                case MP_TYPECODE_HALFFLOAT:
+                case MP_TYPECODE_FLOAT16:
                     align = 2;
                     size = 2;
                     break;
@@ -346,7 +346,7 @@ mp_obj_t mp_binary_get_val(char struct_type, char val_type, byte *p_base, byte *
         const char *s_val = (const char *)(uintptr_t)(mp_uint_t)val;
         return mp_obj_new_str_from_cstr(s_val);
     #if MICROPY_PY_BUILTINS_FLOAT
-    } else if (val_type == MP_TYPECODE_HALFFLOAT) {
+    } else if (val_type == MP_TYPECODE_FLOAT16) {
         return mp_obj_new_float_from_f(mp_decode_half_float(val));
     } else if (val_type == MP_TYPECODE_C(float)) {
         union {
@@ -419,7 +419,7 @@ void mp_binary_set_val(char struct_type, char val_type, mp_obj_t val_in, byte *p
             break;
         #endif
         #if MICROPY_PY_BUILTINS_FLOAT
-        case MP_TYPECODE_HALFFLOAT:
+        case MP_TYPECODE_FLOAT16:
             val = mp_encode_half_float(mp_obj_get_float_to_f(val_in));
             break;
         case MP_TYPECODE_C(float): {

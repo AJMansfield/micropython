@@ -248,7 +248,7 @@ static mp_int_t rp2_flash_get_buffer(mp_obj_t self_in, mp_buffer_info_t *bufinfo
     if (flags == MP_BUFFER_READ) {
         bufinfo->buf = (void *)(XIP_BASE + self->flash_base);
         bufinfo->len = self->flash_size;
-        bufinfo->typecode = MP_TYPECODE_C(unsigned char);
+        bufinfo->typecode = MP_TYPECODE_C(uint8_t);
         return 0;
     } else {
         // Write unsupported.
