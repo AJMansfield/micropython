@@ -113,6 +113,49 @@ MP_NATIVE_ARCH_NAMES = [
     "RV64IMC",
 ]
 
+try:
+    import capstone
+except ImportError:
+    CAPSTONE_CS_ARGS = {}
+else:
+    CAPSTONE_CS_ARGS = {
+        MP_NATIVE_ARCH_X86: (capstone.CS_ARCH_X86, capstone.CS_MODE_32),
+        MP_NATIVE_ARCH_X64: (capstone.CS_ARCH_X86, capstone.CS_MODE_64),
+        MP_NATIVE_ARCH_ARMV6: (
+            capstone.CS_ARCH_ARM,
+            capstone.CS_MODE_ARM | capstone.CS_MODE_THUMB | capstone.CS_MODE_MCLASS,
+        ),
+        MP_NATIVE_ARCH_ARMV6M: (
+            capstone.CS_ARCH_ARM,
+            capstone.CS_MODE_ARM | capstone.CS_MODE_THUMB | capstone.CS_MODE_MCLASS,
+        ),
+        MP_NATIVE_ARCH_ARMV7M: (
+            capstone.CS_ARCH_ARM,
+            capstone.CS_MODE_ARM | capstone.CS_MODE_THUMB | capstone.CS_MODE_MCLASS,
+        ),
+        MP_NATIVE_ARCH_ARMV7EM: (
+            capstone.CS_ARCH_ARM,
+            capstone.CS_MODE_ARM | capstone.CS_MODE_THUMB | capstone.CS_MODE_MCLASS,
+        ),
+        MP_NATIVE_ARCH_ARMV7EMSP: (
+            capstone.CS_ARCH_ARM,
+            capstone.CS_MODE_ARM | capstone.CS_MODE_THUMB | capstone.CS_MODE_MCLASS,
+        ),
+        MP_NATIVE_ARCH_ARMV7EMDP: (
+            capstone.CS_ARCH_ARM,
+            capstone.CS_MODE_ARM | capstone.CS_MODE_THUMB | capstone.CS_MODE_MCLASS,
+        ),
+        MP_NATIVE_ARCH_RV32IMC: (
+            capstone.CS_ARCH_RISCV,
+            capstone.CS_MODE_RISCV32 | capstone.CS_MODE_RISCVC,
+        ),
+        MP_NATIVE_ARCH_RV64IMC: (
+            capstone.CS_ARCH_RISCV,
+            capstone.CS_MODE_RISCV64 | capstone.CS_MODE_RISCVC,
+        ),
+    }
+
+
 MP_PERSISTENT_OBJ_FUN_TABLE = 0
 MP_PERSISTENT_OBJ_NONE = 1
 MP_PERSISTENT_OBJ_FALSE = 2
@@ -902,6 +945,13 @@ class RawCode(object):
             self.n_pos_args = self.prelude_signature[3]
             self.simple_name = self.qstr_table[self.names[0]]
         else:
+            self.offset_prelude_size = 0
+            self.offset_source_info = 0
+            self.offset_line_info = 0
+            self.offset_closure_info = 0
+            self.offset_opcodes = 0
+            self.prelude_signature = 0
+            self.prelude_size = 0
             self.simple_name = self.qstr_table[0]
 
         escaped_name = parent_name + "_" + self.simple_name.qstr_esc
@@ -1263,6 +1313,15 @@ class RawCodeNative(RawCode):
             # ARMVxxM or RV{32,64}IMC -- two byte align.
             self.fun_data_attributes += " __attribute__ ((aligned (2)))"
 
+    def get_opcode_annotations_labels(self, mnemonic: str, ip: int) -> "tuple[dict, list[str]]":
+        annotations = {
+            "source": self.get_source_annotation(ip),
+            "disassembly": mnemonic,
+        }
+        labels = [self.get_label(ip)]
+
+        return annotations, labels
+
     def disassemble(self):
         fun_data = self.fun_data
         print("simple_name:", self.simple_name.str, labels=[self.get_label()])
@@ -1272,16 +1331,46 @@ class RawCodeNative(RawCode):
             hexlify_to_str(fun_data[:32]),
             "..." if len(fun_data) > 32 else "",
         )
-        if self.code_kind != MP_CODE_NATIVE_PY:
-            return
-        print("  prelude:", self.prelude_signature)
-        print("  args:", [self.qstr_table[i].str for i in self.names[1:]])
-        print("  line info:", fun_data[self.offset_line_info : self.offset_opcodes])
-        ip = 0
-        while ip < self.prelude_offset:
-            sz = 16
-            print(" ", hexlify_to_str(fun_data[ip : min(ip + sz, self.prelude_offset)]))
-            ip += sz
+        if self.code_kind == MP_CODE_NATIVE_PY:
+            print("  prelude:", self.prelude_signature)
+            print("  args:", [self.qstr_table[i].str for i in self.names[1:]])
+            print(
+                "  line info:",
+                hexlify_to_str(fun_data[self.offset_line_info : self.offset_opcodes]),
+            )
+        elif self.code_kind in (MP_CODE_NATIVE_VIPER, MP_CODE_NATIVE_ASM):
+            print("  scope_flags:", hex(self.scope_flags))
+            print("  n_pos_args:", self.n_pos_args)
+
+        if config.native_arch not in CAPSTONE_CS_ARGS:
+            ip = 0
+            while ip < self.prelude_offset:
+                sz = 16
+                print(" ", hexlify_to_str(fun_data[ip : min(ip + sz, self.prelude_offset)]))
+                ip += sz
+        else:
+            md = capstone.Cs(*CAPSTONE_CS_ARGS[config.native_arch])
+            md.skipdata = True
+            md.skipdata_mnem = "db"
+            md.detail = True
+
+            if self.code_kind == MP_CODE_NATIVE_PY:
+                code_section = bytes_cons(fun_data[: self.prelude_offset])
+            else:  # if self.code_kind == MP_CODE_NATIVE_ASM:
+                code_section = bytes_cons(fun_data)
+
+            for insn in md.disasm(code_section, 0x0):
+                disassembled = "  %-11s %s %s" % (
+                    hexlify_to_str(insn.bytes),
+                    insn.mnemonic,
+                    insn.op_str,
+                )
+                annotations, labels = self.get_opcode_annotations_labels(
+                    mnemonic=insn.mnemonic,
+                    ip=insn.address,
+                )
+                print(disassembled, annotations=annotations, labels=labels)
+
         self.disassemble_children()
 
     def freeze(self):
